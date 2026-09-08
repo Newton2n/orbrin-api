@@ -1,0 +1,57 @@
+model Organization {
+  id            String                  @id @default(uuid())
+  name          String
+  slug          String                  @unique
+  deletedAt     DateTime?               @map("deleted_at")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  
+  memberships   OrganizationMembership[]
+  teams         Team[]
+  projects      Project[]
+  subscriptions Subscription[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("organization_memberships")
+}
+
+model Team {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  name           String
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teamMembers    TeamMembership[]
+  projects       Project[]
+
+  @@map("teams")
+}
+
+model TeamMembership {
+  teamId    String   @map("team_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_memberships")
+}

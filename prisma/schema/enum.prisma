@@ -1,0 +1,32 @@
+enum Role {
+    ADMIN
+    MANAGER
+    MEMBER
+}
+
+enum TaskStatus {
+    TODO
+    IN_PROGRESS
+    REVIEW
+    DONE
+}
+
+enum TaskPriority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+enum PaymentStatus {
+    PENDING
+    ACTIVE
+    FAILED
+    EXPIRED
+}
+
+enum PaymentGateway {
+    STRIPE
+    BKASH
+    SSLCOMMERZ
+}

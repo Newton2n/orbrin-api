@@ -1,0 +1,37 @@
+{
+  "name": "orbrin-api",
+  "version": "1.0.0",
+  "description": "Backend API for Orbrin, a multi-tenant project management SaaS that handles organizations, teams, projects, sprints, tasks, permissions, collaboration, notifications, and activity tracking.",
+  "homepage": "https://github.com/Newton2n/orbrin-api#readme",
+  "bugs": {
+    "url": "https://github.com/Newton2n/orbrin-api/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Newton2n/orbrin-api.git"
+  },
+  "license": "ISC",
+  "author": "Newton Bepari",
+  "type": "module",
+  "main": "src/app/app.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/app.ts",
+    "start": "node dist/app.js"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.13"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.5.0",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.10.0",
+    "typescript": "^7.0.2"
+  }
+}
