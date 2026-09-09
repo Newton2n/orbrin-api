@@ -1,9 +1,32 @@
-import express, { type Express, type Request, type Response } from 'express';
+import cookieParser from "cookie-parser";
+import express, { Application } from "express";
+import cors from "cors";
+import notFound from "./app/middleware/not-found";
 
-const app: Express = express();
+import config from "./app/config";
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World!');
-});
+const app: Application = express();
 
-app.listen(3000);
+//accept all req
+const corsOptions = {
+  origin: `${config.frontend_url}`,
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
+
+//special webhook middleware
+app.post("/api/payment/webhook", express.raw({ type: "application/json" }));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+//al route
+
+
+
+// error handle
+app.use(notFound);
+
+
+export default app;
