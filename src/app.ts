@@ -15,14 +15,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-//special webhook middleware
-app.post("/api/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-//al route
+//all route
 
 
 

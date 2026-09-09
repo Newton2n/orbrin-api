@@ -55,3 +55,21 @@ export const PaymentGateway = {
 } as const
 
 export type PaymentGateway = (typeof PaymentGateway)[keyof typeof PaymentGateway]
+
+
+export const UserStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED'
+} as const
+
+export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus]
+
+
+export const OrganizationMembershipStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED'
+} as const
+
+export type OrganizationMembershipStatus = (typeof OrganizationMembershipStatus)[keyof typeof OrganizationMembershipStatus]

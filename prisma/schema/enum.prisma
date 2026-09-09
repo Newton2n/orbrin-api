@@ -30,3 +30,14 @@ enum PaymentGateway {
     BKASH
     SSLCOMMERZ
 }
+
+enum UserStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+}
+enum OrganizationMembershipStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+}

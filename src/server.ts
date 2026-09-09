@@ -7,7 +7,11 @@ const port = config.port;
 async function main() {
   try {
     await prisma.$connect();
-    app.listen(port, () => {});
+    app.listen(port, () => {
+      if (config.node_env !== "development") {
+        console.log("Server is running on port " + port);
+      }
+    });
   } catch (error) {
     await prisma.$disconnect();
 

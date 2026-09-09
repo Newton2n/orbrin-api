@@ -19,6 +19,7 @@ model OrganizationMembership {
   organizationId String       @map("organization_id")
   userId         String       @map("user_id")
   role           Role         @default(MEMBER)
+  status         OrganizationMembershipStatus @default(ACTIVE)
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
