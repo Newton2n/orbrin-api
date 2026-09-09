@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import express, { Application } from "express";
 import cors from "cors";
 import notFound from "./app/middleware/not-found";
+import globalError from "./app/middleware/global-error";
 
 import config from "./app/config";
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 
 // error handle
 app.use(notFound);
+app.use(globalError);
 
 
 export default app;
