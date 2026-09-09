@@ -8,10 +8,8 @@ import {
   TRegisterOrgOwnerBody,
 } from "./auth.interface";
 
-
 const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
-
- const existingUser = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findUnique({
     where: { email: payload.email },
   });
 
@@ -172,6 +170,9 @@ const login = async (payload: TLoginBody) => {
 const getMe = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
+    omit: {
+      passwordHash: true,
+    },
     include: {
       memberships: {
         include: {

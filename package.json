@@ -15,8 +15,8 @@
   "type": "module",
   "main": "src/app/server.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/server.ts",
+    "build": "tsup",
     "start": "node dist/server.js"
   },
   "dependencies": {
@@ -43,6 +43,7 @@
     "@types/node": "^26.5.0",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
+    "tsup": "^8.5.1",
     "typescript": "^7.0.2"
   }
 }

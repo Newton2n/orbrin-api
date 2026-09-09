@@ -28,117 +28,122 @@
   ],
   "item": [
     {
-      "name": "Register organization owner",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"fullName\": \"Newton Bepari\",\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\",\n  \"organizationName\": \"Orbrin\",\n  \"organizationSlug\": \"orbrin\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+      "name": "auth",
+      "item": [
+        {
+          "name": "Register organization owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Newton Bepari\",\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\",\n  \"organizationName\": \"Orbrin\",\n  \"organizationSlug\": \"orbrin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/register-owner",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "register-owner"]
             }
           }
         },
-        "url": {
-          "raw": "{{baseUrl}}{{apiPrefix}}/auth/register-owner",
-          "host": ["{{baseUrl}}"],
-          "path": ["{{apiPrefix}}", "auth", "register-owner"]
-        }
-      }
-    },
-    {
-      "name": "Register member",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"fullName\": \"Team Member\",\n  \"email\": \"member@example.com\",\n  \"password\": \"password123\",\n  \"organizationId\": \"{{organizationId}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Register member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Team Member\",\n  \"email\": \"member@example.com\",\n  \"password\": \"password123\",\n  \"organizationId\": \"{{organizationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/register-member",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "register-member"]
             }
           }
         },
-        "url": {
-          "raw": "{{baseUrl}}{{apiPrefix}}/auth/register-member",
-          "host": ["{{baseUrl}}"],
-          "path": ["{{apiPrefix}}", "auth", "register-member"]
-        }
-      }
-    },
-    {
-      "name": "Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "login"]
             }
           }
         },
-        "url": {
-          "raw": "{{baseUrl}}{{apiPrefix}}/auth/login",
-          "host": ["{{baseUrl}}"],
-          "path": ["{{apiPrefix}}", "auth", "login"]
-        }
-      }
-    },
-    {
-      "name": "Get current user",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
+        {
+          "name": "Get current user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "me"]
             }
-          ]
+          }
         },
-        "url": {
-          "raw": "{{baseUrl}}{{apiPrefix}}/auth/me",
-          "host": ["{{baseUrl}}"],
-          "path": ["{{apiPrefix}}", "auth", "me"]
+        {
+          "name": "Refresh access token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Uses the refreshToken cookie set by the login request.",
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/refresh-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "refresh-token"]
+            }
+          }
         }
-      }
-    },
-    {
-      "name": "Refresh access token",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "description": "Uses the refreshToken cookie set by the login request.",
-        "url": {
-          "raw": "{{baseUrl}}{{apiPrefix}}/auth/refresh-token",
-          "host": ["{{baseUrl}}"],
-          "path": ["{{apiPrefix}}", "auth", "refresh-token"]
-        }
-      }
+      ]
     }
   ]
 }
