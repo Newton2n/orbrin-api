@@ -1,18 +1,16 @@
 model Project {
-    id             String    @id @default(uuid())
-    organizationId String    @map("organization_id")
-    teamId         String?   @map("team_id")
-    name           String
-    description    String?
-    status         String    @default("active")
-    deletedAt      DateTime? @map("deleted_at")
-    createdAt      DateTime  @default(now()) @map("created_at")
-    updatedAt      DateTime  @updatedAt @map("updated_at")
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  name           String
+  description    String?
+  status         String        @default("active")
+  deletedAt      DateTime?     @map("deleted_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
-    organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams        ProjectTeam[] // Links project to the junction table
+  tasks        Task[]
 
-    tasks Task[]
-
-    @@map("projects")
+  @@map("projects")
 }
