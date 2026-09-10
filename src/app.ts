@@ -7,6 +7,7 @@ import globalError from "./app/middleware/global-error";
 import config from "./app/config";
 import { authRoutes } from "./app/module/auth/auth.route";
 import { teamRoutes } from "./app/module/team/team.route";
+import { projectRoutes } from "./app/module/project/project.route";
 
 const app: Application = express();
 
@@ -25,6 +26,7 @@ app.use(cookieParser());
 //all route
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
+app.use("/api/v1/projects", projectRoutes);
 
 
 

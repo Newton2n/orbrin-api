@@ -1383,6 +1383,328 @@ router2.delete(
 );
 var teamRoutes = router2;
 
+// src/app/module/project/project.route.ts
+import { Router as Router3 } from "express";
+
+// src/app/module/project/project.service.ts
+var createProject = async (organizationId, payload) => {
+  const project = await prisma.project.create({
+    data: {
+      name: payload.name,
+      description: payload.description,
+      organizationId
+    }
+  });
+  return project;
+};
+var getAllProjects = async (organizationId) => {
+  const projects = await prisma.project.findMany({
+    where: {
+      organizationId,
+      deletedAt: null
+    },
+    include: {
+      teams: true,
+      tasks: true
+    }
+  });
+  return projects;
+};
+var getProjectById = async (organizationId, projectId) => {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      organizationId,
+      deletedAt: null
+    },
+    include: {
+      teams: true,
+      tasks: true
+    }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  return project;
+};
+var updateProject = async (organizationId, projectId, payload) => {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      organizationId,
+      deletedAt: null
+    }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  const updatedProject = await prisma.project.update({
+    where: { id: projectId },
+    data: payload
+  });
+  return updatedProject;
+};
+var deleteProject = async (organizationId, projectId) => {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      organizationId,
+      deletedAt: null
+    }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  const updatedProject = await prisma.project.update({
+    where: { id: projectId },
+    data: { deletedAt: /* @__PURE__ */ new Date() }
+  });
+  return updatedProject;
+};
+var assignTeamToProject = async (organizationId, projectId, teamId) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) throw new Error("Project not found");
+  const team = await prisma.team.findFirst({
+    where: { id: teamId, organizationId, deletedAt: null }
+  });
+  if (!team) throw new Error("Team not found");
+  const assignment = await prisma.projectTeam.create({
+    data: {
+      projectId,
+      teamId
+    }
+  });
+  return assignment;
+};
+var removeTeamFromProject = async (organizationId, projectId, teamId) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) throw new Error("Project not found");
+  const deletedAssignment = await prisma.projectTeam.delete({
+    where: {
+      projectId_teamId: {
+        projectId,
+        teamId
+      }
+    }
+  });
+  return deletedAssignment;
+};
+var projectService = {
+  createProject,
+  getAllProjects,
+  getProjectById,
+  updateProject,
+  deleteProject,
+  assignTeamToProject,
+  removeTeamFromProject
+};
+
+// src/app/module/project/project.controller.ts
+import { StatusCodes as StatusCodes4 } from "http-status-codes";
+var createProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.createProject(organizationId, req.body);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.CREATED,
+      message: "Project created successfully",
+      data: result
+    });
+  }
+);
+var getAllProjects2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.getAllProjects(organizationId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.OK,
+      message: "Projects retrieved successfully",
+      data: result
+    });
+  }
+);
+var getProjectById2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.getProjectById(
+      organizationId,
+      projectId
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.OK,
+      message: "Project retrieved successfully",
+      data: result
+    });
+  }
+);
+var updateProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.updateProject(
+      organizationId,
+      projectId,
+      req.body
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.OK,
+      message: "Project updated successfully",
+      data: result
+    });
+  }
+);
+var deleteProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.deleteProject(
+      organizationId,
+      projectId
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.OK,
+      message: "Project deleted successfully",
+      data: result
+    });
+  }
+);
+var assignTeamToProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    const { teamId } = req.body;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.assignTeamToProject(
+      organizationId,
+      projectId,
+      teamId
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.CREATED,
+      message: "Team assigned to project successfully",
+      data: result
+    });
+  }
+);
+var removeTeamFromProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId, teamId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    const result = await projectService.removeTeamFromProject(
+      organizationId,
+      projectId,
+      teamId
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes4.OK,
+      message: "Team removed from project successfully",
+      data: result
+    });
+  }
+);
+var projectController = {
+  createProject: createProject2,
+  getAllProjects: getAllProjects2,
+  getProjectById: getProjectById2,
+  updateProject: updateProject2,
+  deleteProject: deleteProject2,
+  assignTeamToProject: assignTeamToProject2,
+  removeTeamFromProject: removeTeamFromProject2
+};
+
+// src/app/module/project/project.schema.ts
+import { z as z3 } from "zod";
+var createProjectSchema = z3.object({
+  body: z3.object({
+    name: z3.string({ error: "Project name is required" }).trim().min(1, { error: "Project name cannot be empty" }),
+    description: z3.string().optional()
+  })
+});
+var updateProjectSchema = z3.object({
+  body: z3.object({
+    name: z3.string().trim().min(1, { error: "Project name cannot be empty" }).optional(),
+    description: z3.string().optional(),
+    status: z3.string().optional()
+  })
+});
+var assignTeamSchema = z3.object({
+  body: z3.object({
+    teamId: z3.string({ error: "Team ID is required" }).trim().min(1, { error: "Team ID cannot be empty" })
+  })
+});
+var projectValidation = {
+  createProjectSchema,
+  updateProjectSchema,
+  assignTeamSchema
+};
+
+// src/app/module/project/project.route.ts
+var router3 = Router3();
+router3.post(
+  "/",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(projectValidation.createProjectSchema),
+  projectController.createProject
+);
+router3.get(
+  "/",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  projectController.getAllProjects
+);
+router3.get(
+  "/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  projectController.getProjectById
+);
+router3.patch(
+  "/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(projectValidation.updateProjectSchema),
+  projectController.updateProject
+);
+router3.delete(
+  "/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  projectController.deleteProject
+);
+router3.post(
+  "/:projectId/teams",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(projectValidation.assignTeamSchema),
+  projectController.assignTeamToProject
+);
+router3.delete(
+  "/:projectId/teams/:teamId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  projectController.removeTeamFromProject
+);
+var projectRoutes = router3;
+
 // src/app.ts
 var app = express();
 var corsOptions = {
@@ -1395,6 +1717,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
+app.use("/api/v1/projects", projectRoutes);
 app.use(not_found_default);
 app.use(global_error_default);
 var app_default = app;
