@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { Prisma } from "../../../prisma/generated/prisma/client";
 import { ZodError } from "zod";
 import { StatusCodes } from "http-status-codes";
-
+import config from "../config";
 export class AppError extends Error {
   constructor(
     public statusCode: number,
@@ -28,6 +28,9 @@ const globalError = (
   let message = "Something went wrong";
   let errorDetails: TErrorDetail[] = [];
 
+  if(config.node_env === "development") {
+    console.error("Error:", err);
+  }
   // Custom App Error
   if (err instanceof AppError) {
     statusCode = err.statusCode;

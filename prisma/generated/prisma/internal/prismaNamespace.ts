@@ -1218,8 +1218,10 @@ export const TeamScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
   name: 'name',
+  description: 'description',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
 } as const
 
 export type TeamScalarFieldEnum = (typeof TeamScalarFieldEnum)[keyof typeof TeamScalarFieldEnum]

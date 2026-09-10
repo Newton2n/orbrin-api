@@ -144,6 +144,125 @@
           }
         }
       ]
+    },
+    {
+      "name": "teams",
+      "item": [
+        {
+          "name": "Create team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Frontend Engineering\",\n  \"description\": \"Core UI development team\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams"]
+            }
+          }
+        },
+        {
+          "name": "Get all teams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams"]
+            }
+          }
+        },
+        {
+          "name": "Get team by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams", ":teamId"],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete team",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams", ":teamId"],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
