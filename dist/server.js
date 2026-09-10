@@ -1343,6 +1343,8 @@ var updateTeamSchema = z2.object({
   body: z2.object({
     name: z2.string().trim().min(1, { error: "Team name cannot be empty" }).optional(),
     description: z2.string().optional()
+  }).refine((body) => Object.keys(body).length > 0, {
+    error: "At least one team field is required to update"
   })
 });
 var teamValidation = {

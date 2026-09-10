@@ -11,14 +11,18 @@ const createTeamSchema = z.object({
 });
 
 const updateTeamSchema = z.object({
-  body: z.object({
-    name: z
-      .string()
-      .trim()
-      .min(1, { error: "Team name cannot be empty" })
-      .optional(),
-    description: z.string().optional(),
-  }),
+  body: z
+    .object({
+      name: z
+        .string()
+        .trim()
+        .min(1, { error: "Team name cannot be empty" })
+        .optional(),
+      description: z.string().optional(),
+    })
+    .refine((body) => Object.keys(body).length > 0, {
+      error: "At least one team field is required to update",
+    }),
 });
 
 export const teamValidation = {
