@@ -540,6 +540,179 @@
           }
         }
       ]
+    },
+    {
+      "name": "tasks",
+      "item": [
+        {
+          "name": "Create task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement login page\",\n  \"description\": \"Build the UI for the login screen\",\n  \"status\": \"TODO\",\n  \"priority\": \"HIGH\",\n  \"dueDate\": \"2026-12-31T23:59:59.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "tasks", "projects", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get tasks by project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "tasks", "projects", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get task by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/:taskId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "tasks", ":taskId"],
+              "variable": [
+                {
+                  "key": "taskId",
+                  "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement login page & API integration\",\n  \"status\": \"IN_PROGRESS\",\n  \"priority\": \"URGENT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/:taskId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "tasks", ":taskId"],
+              "variable": [
+                {
+                  "key": "taskId",
+                  "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/:taskId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "tasks", ":taskId"],
+              "variable": [
+                {
+                  "key": "taskId",
+                  "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

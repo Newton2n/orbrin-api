@@ -8,6 +8,7 @@ import config from "./app/config";
 import { authRoutes } from "./app/module/auth/auth.route";
 import { teamRoutes } from "./app/module/team/team.route";
 import { projectRoutes } from "./app/module/project/project.route";
+import { taskRoutes } from "./app/module/task/task.route";
 
 const app: Application = express();
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/projects", projectRoutes);
+app.use("/api/v1/tasks", taskRoutes);
 
 
 

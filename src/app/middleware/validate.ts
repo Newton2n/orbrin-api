@@ -35,13 +35,16 @@ declare global {
   }
 }
 
+
+
 export const validateQuery = (schema: z.ZodObject<any>) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.query);
 
     if (!result.success) {
       res.status(400).json({
-        status: "error",
+        success: false,
+        message: "Validation failed for query parameters",
         errors: result.error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
