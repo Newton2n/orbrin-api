@@ -1,7 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { ICreateTeamPayload, IUpdateTeamPayload } from "./team.interface";
 
-
 // Create a new team
 const createTeam = async (
   organizationId: string,
@@ -14,23 +13,34 @@ const createTeam = async (
     },
   });
 
-  if (existingTeam) {
+  if (existingTeam && !existingTeam.deletedAt) {
     throw new Error(
       "A team with this name already exists in the organization.",
     );
   }
 
-  const team = await prisma.team.create({
-    data: {
-      name: payload.name,
-      description: payload.description,
-      organizationId,
-    },
-  });
+  if (existingTeam && existingTeam.deletedAt) {
+    // If the team exists but is soft-deleted, we can "un delete" it by updating its deletedAt field to null and updating its description if provided.
+    const updatedTeam = await prisma.team.update({
+      where: { id: existingTeam.id },
+      data: {
+        deletedAt: null,
+        description: payload.description || existingTeam.description,
+      },
+    });
+    return updatedTeam;
+  } else if(!existingTeam) {
+    const team = await prisma.team.create({
+      data: {
+        name: payload.name,
+        description: payload.description,
+        organizationId,
+      },
+    });
 
-  return team;
+    return team;
+  }
 };
-
 
 // Get all teams for an organization
 const getAllTeams = async (organizationId: string) => {
@@ -49,16 +59,19 @@ const getAllTeams = async (organizationId: string) => {
 
 // Get a team by its ID
 const getTeamById = async (organizationId: string, teamId: string) => {
-
-
-
   const team = await prisma.team.findFirst({
     where: {
       id: teamId,
       organizationId,
       deletedAt: null,
     },
+    //complex include to fetch related projects and team members
     include: {
+      projects :{
+        include :{
+          project :true
+        }
+      },
       teamMembers: true,
     },
   });

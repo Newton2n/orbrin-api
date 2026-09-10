@@ -180,7 +180,13 @@
             "url": {
               "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "teams", ":teamId"]
+              "path": ["{{apiPrefix}}", "teams", ":teamId"],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
             }
           }
         },
@@ -454,6 +460,80 @@
                 {
                   "key": "projectId",
                   "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign team to project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": \"YOUR_TEAM_ID_HERE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/projects/:projectId/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "projects", ":projectId", "teams"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove team from project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/projects/:projectId/teams/:teamId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "projects", ":projectId", "teams", ":teamId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                },
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
                 }
               ]
             }

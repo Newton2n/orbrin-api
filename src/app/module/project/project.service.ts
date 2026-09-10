@@ -111,7 +111,6 @@ const assignTeamToProject = async (
   projectId: string,
   teamId: string,
 ) => {
-
   // Verify project belongs to the tenant
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null },
@@ -124,7 +123,15 @@ const assignTeamToProject = async (
   });
   if (!team) throw new Error("Team not found");
 
-  // Create the junction record (handling potential duplicate assignments)
+  // Check if the team is already assigned to the project
+  const existingAssignment = await prisma.projectTeam.findFirst({
+    where: { projectId, teamId },
+  });
+
+  if (existingAssignment) {
+    throw new Error("Team is already assigned to this project");
+  }
+
   const assignment = await prisma.projectTeam.create({
     data: {
       projectId,
