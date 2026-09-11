@@ -1,20 +1,9 @@
-export interface ICreateTaskPayload {
-  title: string;
-  description?: string;
-  status?: string;
-  priority?: string;
-  dueDate?: string;
-  assigneeId?: string;
-}
+import {z} from "zod";
+import { taskValidation } from "./task.schema";
 
-export interface IUpdateTaskPayload {
-  title?: string;
-  description?: string;
-  status?: string;
-  priority?: string;
-  dueDate?: string;
-  assigneeId?: string;
-}
+export type ICreateTaskPayload = z.infer<typeof taskValidation.createTaskSchema>["body"];
+export type IUpdateTaskPayload = z.infer<typeof taskValidation.updateTaskSchema>["body"];
+
 
 export interface ITaskQueryFilters {
   page?: string;

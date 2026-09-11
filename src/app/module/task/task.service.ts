@@ -1,3 +1,5 @@
+import { IssueData } from "zod/v3";
+import { Role, TaskStatus } from "../../../../prisma/generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import {
   ICreateTaskPayload,
@@ -5,6 +7,7 @@ import {
   ITaskQueryFilters,
 } from "./task.interface";
 
+// Create a new task for a specific project
 const createTask = async (
   organizationId: string,
   userId: string,
@@ -19,14 +22,30 @@ const createTask = async (
     throw new Error("Project not found");
   }
 
+  // Validate status and priority values
+  if (
+    payload.status &&
+    !["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)
+  ) {
+    throw new Error("Invalid status value");
+  }
+
+
+  // Validate priority value
+  if (
+    payload.priority &&
+    !["LOW", "MEDIUM", "HIGH"].includes(payload.priority)
+  ) {
+    throw new Error("Invalid priority value");
+  }
   const task = await prisma.task.create({
     data: {
       title: payload.title,
       description: payload.description,
-      status: (payload.status as any) || "TODO",
-      priority: (payload.priority as any) || "MEDIUM",
+      status: payload.status || "TODO",
+      priority: payload.priority || "MEDIUM",
       assigneeId: payload.assigneeId,
-      creatorId: userId, 
+      creatorId: userId,
       projectId,
     },
   });
@@ -34,6 +53,7 @@ const createTask = async (
   return task;
 };
 
+// Get all tasks for a specific project
 const getTasksByProject = async (organizationId: string, projectId: string) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null },
@@ -53,6 +73,7 @@ const getTasksByProject = async (organizationId: string, projectId: string) => {
   return tasks;
 };
 
+// Get a single task by its ID
 const getTaskById = async (organizationId: string, taskId: string) => {
   const task = await prisma.task.findFirst({
     where: {
@@ -75,27 +96,42 @@ const getTaskById = async (organizationId: string, taskId: string) => {
   return task;
 };
 
+// Update a task by its ID
 const updateTask = async (
   organizationId: string,
   taskId: string,
   payload: IUpdateTaskPayload,
+  userId: string,
+  role : Role
 ) => {
   const task = await prisma.task.findFirst({
     where: {
       id: taskId,
+      deletedAt: null,
       project: {
         organizationId,
         deletedAt: null,
       },
-      deletedAt: null,
     },
+    
   });
+ 
 
   if (!task) {
     throw new Error("Task not found");
   }
 
-  const updateData: any = { ...payload };
+  if(task.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN && task.assigneeId !== userId){
+    throw new Error("You are not authorized to update this task");
+  }
+
+  console.log("role",role)
+  if(payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN){
+    throw new Error("You are not authorized to assign this task");
+  }
+
+  const updateData :IUpdateTaskPayload = { ...payload };
+
   if (payload.dueDate) {
     updateData.dueDate = new Date(payload.dueDate);
   }
@@ -108,6 +144,7 @@ const updateTask = async (
   return updatedTask;
 };
 
+// Delete a task by its ID
 const deleteTask = async (organizationId: string, taskId: string) => {
   const task = await prisma.task.findFirst({
     where: {

@@ -24,14 +24,14 @@ router.get(
 
 // Get a single task by its ID
 router.get(
-  "/tasks/:taskId",
+  "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   taskController.getTaskById,
 );
 
 // Update a task by its ID
 router.patch(
-  "/tasks/:taskId",
+  "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   validate(taskValidation.updateTaskSchema),
   taskController.updateTask,
@@ -39,7 +39,7 @@ router.patch(
 
 // Delete a task by its ID
 router.delete(
-  "/tasks/:taskId",
+  "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
   taskController.deleteTask,
 );
