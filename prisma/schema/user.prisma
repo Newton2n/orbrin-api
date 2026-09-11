@@ -12,7 +12,7 @@ model User {
   teamMemberships   TeamMembership[]
   createdTasks      Task[]                  @relation("TaskCreator")
   assignedTasks     Task[]                  @relation("TaskAssignee")
-  
+  comments Comment[]
 
   @@map("users")
 }
