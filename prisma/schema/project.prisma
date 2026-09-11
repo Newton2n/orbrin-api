@@ -9,6 +9,7 @@ model Project {
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sprints     Sprint[]
   teams        ProjectTeam[] // Links project to the junction table
   tasks        Task[]
 

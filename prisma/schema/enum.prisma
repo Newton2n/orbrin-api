@@ -41,3 +41,8 @@ enum OrganizationMembershipStatus {
     INACTIVE
     SUSPENDED
 }
+enum SprintStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+}
