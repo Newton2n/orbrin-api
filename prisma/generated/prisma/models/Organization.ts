@@ -360,18 +360,6 @@ export type OrganizationScalarRelationFilter = {
   isNot?: Prisma.OrganizationWhereInput
 }
 
-export type StringFieldUpdateOperationsInput = {
-  set?: string
-}
-
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
-export type DateTimeFieldUpdateOperationsInput = {
-  set?: Date | string
-}
-
 export type OrganizationCreateNestedOneWithoutMembershipsInput = {
   create?: Prisma.XOR<Prisma.OrganizationCreateWithoutMembershipsInput, Prisma.OrganizationUncheckedCreateWithoutMembershipsInput>
   connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutMembershipsInput

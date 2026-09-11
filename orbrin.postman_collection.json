@@ -886,6 +886,151 @@
           }
         }
       ]
+    },
+    {
+      "name": "comments",
+      "item": [
+        {
+          "name": "Add comment to task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Looks good! Let's proceed with this implementation.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments/tasks/:taskId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "comments", "tasks", ":taskId"],
+              "variable": [
+                {
+                  "key": "taskId",
+                  "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get comments by task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments/tasks/:taskId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "comments", "tasks", ":taskId"],
+              "variable": [
+                {
+                  "key": "taskId",
+                  "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update comment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated comment text here.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments/:commentId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "comments", ":commentId"],
+              "variable": [
+                {
+                  "key": "commentId",
+                  "value": "YOUR_COMMENT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments/:commentId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "comments", ":commentId"],
+              "variable": [
+                {
+                  "key": "commentId",
+                  "value": "YOUR_COMMENT_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
