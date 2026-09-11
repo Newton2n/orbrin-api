@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Orbrin API",
-    "description": "Authentication endpoints for the Orbrin API.",
+    "description": "Authentication and resource endpoints for the Orbrin API.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -707,6 +707,179 @@
                 {
                   "key": "taskId",
                   "value": "YOUR_TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sprints",
+      "item": [
+        {
+          "name": "Create sprint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint 1\",\n  \"goal\": \"Setup authentication and core modules\",\n  \"status\": \"PLANNING\",\n  \"startDate\": \"2026-04-01T00:00:00.000Z\",\n  \"endDate\": \"2026-04-14T23:59:59.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "sprints", "projects", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get sprints by project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "sprints", "projects", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get sprint by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/:sprintId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "sprints", ":sprintId"],
+              "variable": [
+                {
+                  "key": "sprintId",
+                  "value": "YOUR_SPRINT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update sprint",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint 1 (Updated)\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/:sprintId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "sprints", ":sprintId"],
+              "variable": [
+                {
+                  "key": "sprintId",
+                  "value": "YOUR_SPRINT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete sprint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/:sprintId",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "sprints", ":sprintId"],
+              "variable": [
+                {
+                  "key": "sprintId",
+                  "value": "YOUR_SPRINT_ID_HERE"
                 }
               ]
             }

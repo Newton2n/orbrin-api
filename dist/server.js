@@ -81,6 +81,12 @@ enum OrganizationMembershipStatus {
   SUSPENDED
 }
 
+enum SprintStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+}
+
 model Organization {
   id        String    @id @default(uuid())
   name      String
@@ -124,6 +130,7 @@ model Project {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sprints      Sprint[]
   teams        ProjectTeam[] // Links project to the junction table
   tasks        Task[]
 
@@ -149,6 +156,24 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Sprint {
+  id        String       @id @default(uuid())
+  projectId String       @map("project_id")
+  name      String
+  goal      String?
+  status    SprintStatus @default(PLANNING)
+  startDate DateTime?    @map("start_date")
+  endDate   DateTime?    @map("end_date")
+  deletedAt DateTime?    @map("deleted_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@map("sprints")
 }
 
 model Subscription {
@@ -190,6 +215,8 @@ model Task {
   subTasks   Task[] @relation("SubTasks")
   creator    User?  @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: SetNull)
   assignee   User?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  sprint Sprint? @relation(fields: [sprintId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
 }
@@ -252,10 +279,10 @@ model User {
     "graph": ""
   }
 };
-config.runtimeDataModel = JSON.parse('{"models":{"Organization":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"memberships","kind":"object","type":"OrganizationMembership","relationName":"OrganizationToOrganizationMembership"},{"name":"teams","kind":"object","type":"Team","relationName":"OrganizationToTeam"},{"name":"projects","kind":"object","type":"Project","relationName":"OrganizationToProject"},{"name":"subscriptions","kind":"object","type":"Subscription","relationName":"OrganizationToSubscription"}],"dbName":"organizations","schema":null},"OrganizationMembership":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"role","kind":"enum","type":"Role"},{"name":"status","kind":"enum","type":"OrganizationMembershipStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToOrganizationMembership"},{"name":"user","kind":"object","type":"User","relationName":"OrganizationMembershipToUser"}],"dbName":"organization_memberships","schema":null},"Project":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"status","kind":"scalar","type":"String"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToProject"},{"name":"teams","kind":"object","type":"ProjectTeam","relationName":"ProjectToProjectTeam"},{"name":"tasks","kind":"object","type":"Task","relationName":"ProjectToTask"}],"dbName":"projects","schema":null},"ProjectTeam":{"fields":[{"name":"projectId","kind":"scalar","type":"String","dbName":"project_id"},{"name":"teamId","kind":"scalar","type":"String","dbName":"team_id"},{"name":"assignedAt","kind":"scalar","type":"DateTime","dbName":"assigned_at"},{"name":"project","kind":"object","type":"Project","relationName":"ProjectToProjectTeam"},{"name":"team","kind":"object","type":"Team","relationName":"ProjectTeamToTeam"}],"dbName":"project_teams","schema":null},"Subscription":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"gateway","kind":"enum","type":"PaymentGateway"},{"name":"transactionId","kind":"scalar","type":"String","dbName":"transaction_id"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"currency","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"PaymentStatus"},{"name":"planName","kind":"scalar","type":"String","dbName":"plan_name"},{"name":"expiresAt","kind":"scalar","type":"DateTime","dbName":"expires_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToSubscription"}],"dbName":"subscriptions","schema":null},"Task":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"projectId","kind":"scalar","type":"String","dbName":"project_id"},{"name":"sprintId","kind":"scalar","type":"String","dbName":"sprint_id"},{"name":"parentTaskId","kind":"scalar","type":"String","dbName":"parent_task_id"},{"name":"creatorId","kind":"scalar","type":"String","dbName":"creator_id"},{"name":"assigneeId","kind":"scalar","type":"String","dbName":"assignee_id"},{"name":"title","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"TaskStatus"},{"name":"priority","kind":"enum","type":"TaskPriority"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"project","kind":"object","type":"Project","relationName":"ProjectToTask"},{"name":"parentTask","kind":"object","type":"Task","relationName":"SubTasks"},{"name":"subTasks","kind":"object","type":"Task","relationName":"SubTasks"},{"name":"creator","kind":"object","type":"User","relationName":"TaskCreator"},{"name":"assignee","kind":"object","type":"User","relationName":"TaskAssignee"}],"dbName":"tasks","schema":null},"Team":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToTeam"},{"name":"teamMembers","kind":"object","type":"TeamMembership","relationName":"TeamToTeamMembership"},{"name":"projects","kind":"object","type":"ProjectTeam","relationName":"ProjectTeamToTeam"}],"dbName":"teams","schema":null},"TeamMembership":{"fields":[{"name":"teamId","kind":"scalar","type":"String","dbName":"team_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"team","kind":"object","type":"Team","relationName":"TeamToTeamMembership"},{"name":"user","kind":"object","type":"User","relationName":"TeamMembershipToUser"}],"dbName":"team_memberships","schema":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"passwordHash","kind":"scalar","type":"String","dbName":"password_hash"},{"name":"fullName","kind":"scalar","type":"String","dbName":"full_name"},{"name":"status","kind":"enum","type":"UserStatus"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"memberships","kind":"object","type":"OrganizationMembership","relationName":"OrganizationMembershipToUser"},{"name":"teamMemberships","kind":"object","type":"TeamMembership","relationName":"TeamMembershipToUser"},{"name":"createdTasks","kind":"object","type":"Task","relationName":"TaskCreator"},{"name":"assignedTasks","kind":"object","type":"Task","relationName":"TaskAssignee"}],"dbName":"users","schema":null}},"enums":{},"types":{}}');
+config.runtimeDataModel = JSON.parse('{"models":{"Organization":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"memberships","kind":"object","type":"OrganizationMembership","relationName":"OrganizationToOrganizationMembership"},{"name":"teams","kind":"object","type":"Team","relationName":"OrganizationToTeam"},{"name":"projects","kind":"object","type":"Project","relationName":"OrganizationToProject"},{"name":"subscriptions","kind":"object","type":"Subscription","relationName":"OrganizationToSubscription"}],"dbName":"organizations","schema":null},"OrganizationMembership":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"role","kind":"enum","type":"Role"},{"name":"status","kind":"enum","type":"OrganizationMembershipStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToOrganizationMembership"},{"name":"user","kind":"object","type":"User","relationName":"OrganizationMembershipToUser"}],"dbName":"organization_memberships","schema":null},"Project":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"status","kind":"scalar","type":"String"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToProject"},{"name":"sprints","kind":"object","type":"Sprint","relationName":"ProjectToSprint"},{"name":"teams","kind":"object","type":"ProjectTeam","relationName":"ProjectToProjectTeam"},{"name":"tasks","kind":"object","type":"Task","relationName":"ProjectToTask"}],"dbName":"projects","schema":null},"ProjectTeam":{"fields":[{"name":"projectId","kind":"scalar","type":"String","dbName":"project_id"},{"name":"teamId","kind":"scalar","type":"String","dbName":"team_id"},{"name":"assignedAt","kind":"scalar","type":"DateTime","dbName":"assigned_at"},{"name":"project","kind":"object","type":"Project","relationName":"ProjectToProjectTeam"},{"name":"team","kind":"object","type":"Team","relationName":"ProjectTeamToTeam"}],"dbName":"project_teams","schema":null},"Sprint":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"projectId","kind":"scalar","type":"String","dbName":"project_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"goal","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"SprintStatus"},{"name":"startDate","kind":"scalar","type":"DateTime","dbName":"start_date"},{"name":"endDate","kind":"scalar","type":"DateTime","dbName":"end_date"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"project","kind":"object","type":"Project","relationName":"ProjectToSprint"},{"name":"tasks","kind":"object","type":"Task","relationName":"SprintToTask"}],"dbName":"sprints","schema":null},"Subscription":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"gateway","kind":"enum","type":"PaymentGateway"},{"name":"transactionId","kind":"scalar","type":"String","dbName":"transaction_id"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"currency","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"PaymentStatus"},{"name":"planName","kind":"scalar","type":"String","dbName":"plan_name"},{"name":"expiresAt","kind":"scalar","type":"DateTime","dbName":"expires_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToSubscription"}],"dbName":"subscriptions","schema":null},"Task":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"projectId","kind":"scalar","type":"String","dbName":"project_id"},{"name":"sprintId","kind":"scalar","type":"String","dbName":"sprint_id"},{"name":"parentTaskId","kind":"scalar","type":"String","dbName":"parent_task_id"},{"name":"creatorId","kind":"scalar","type":"String","dbName":"creator_id"},{"name":"assigneeId","kind":"scalar","type":"String","dbName":"assignee_id"},{"name":"title","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"TaskStatus"},{"name":"priority","kind":"enum","type":"TaskPriority"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"project","kind":"object","type":"Project","relationName":"ProjectToTask"},{"name":"parentTask","kind":"object","type":"Task","relationName":"SubTasks"},{"name":"subTasks","kind":"object","type":"Task","relationName":"SubTasks"},{"name":"creator","kind":"object","type":"User","relationName":"TaskCreator"},{"name":"assignee","kind":"object","type":"User","relationName":"TaskAssignee"},{"name":"sprint","kind":"object","type":"Sprint","relationName":"SprintToTask"}],"dbName":"tasks","schema":null},"Team":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"organizationId","kind":"scalar","type":"String","dbName":"organization_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"organization","kind":"object","type":"Organization","relationName":"OrganizationToTeam"},{"name":"teamMembers","kind":"object","type":"TeamMembership","relationName":"TeamToTeamMembership"},{"name":"projects","kind":"object","type":"ProjectTeam","relationName":"ProjectTeamToTeam"}],"dbName":"teams","schema":null},"TeamMembership":{"fields":[{"name":"teamId","kind":"scalar","type":"String","dbName":"team_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"team","kind":"object","type":"Team","relationName":"TeamToTeamMembership"},{"name":"user","kind":"object","type":"User","relationName":"TeamMembershipToUser"}],"dbName":"team_memberships","schema":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"passwordHash","kind":"scalar","type":"String","dbName":"password_hash"},{"name":"fullName","kind":"scalar","type":"String","dbName":"full_name"},{"name":"status","kind":"enum","type":"UserStatus"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"memberships","kind":"object","type":"OrganizationMembership","relationName":"OrganizationMembershipToUser"},{"name":"teamMemberships","kind":"object","type":"TeamMembership","relationName":"TeamMembershipToUser"},{"name":"createdTasks","kind":"object","type":"Task","relationName":"TaskCreator"},{"name":"assignedTasks","kind":"object","type":"Task","relationName":"TaskAssignee"}],"dbName":"users","schema":null}},"enums":{},"types":{}}');
 config.parameterizationSchema = {
-  strings: JSON.parse('["where","orderBy","cursor","organization","memberships","teamMembers","teams","project","parentTask","subTasks","creator","assignee","_count","tasks","team","projects","user","teamMemberships","createdTasks","assignedTasks","subscriptions","Organization.findUnique","Organization.findUniqueOrThrow","Organization.findFirst","Organization.findFirstOrThrow","Organization.findMany","data","Organization.createOne","Organization.createMany","Organization.createManyAndReturn","Organization.updateOne","Organization.updateMany","Organization.updateManyAndReturn","create","update","Organization.upsertOne","Organization.deleteOne","Organization.deleteMany","having","_min","_max","Organization.groupBy","Organization.aggregate","OrganizationMembership.findUnique","OrganizationMembership.findUniqueOrThrow","OrganizationMembership.findFirst","OrganizationMembership.findFirstOrThrow","OrganizationMembership.findMany","OrganizationMembership.createOne","OrganizationMembership.createMany","OrganizationMembership.createManyAndReturn","OrganizationMembership.updateOne","OrganizationMembership.updateMany","OrganizationMembership.updateManyAndReturn","OrganizationMembership.upsertOne","OrganizationMembership.deleteOne","OrganizationMembership.deleteMany","OrganizationMembership.groupBy","OrganizationMembership.aggregate","Project.findUnique","Project.findUniqueOrThrow","Project.findFirst","Project.findFirstOrThrow","Project.findMany","Project.createOne","Project.createMany","Project.createManyAndReturn","Project.updateOne","Project.updateMany","Project.updateManyAndReturn","Project.upsertOne","Project.deleteOne","Project.deleteMany","Project.groupBy","Project.aggregate","ProjectTeam.findUnique","ProjectTeam.findUniqueOrThrow","ProjectTeam.findFirst","ProjectTeam.findFirstOrThrow","ProjectTeam.findMany","ProjectTeam.createOne","ProjectTeam.createMany","ProjectTeam.createManyAndReturn","ProjectTeam.updateOne","ProjectTeam.updateMany","ProjectTeam.updateManyAndReturn","ProjectTeam.upsertOne","ProjectTeam.deleteOne","ProjectTeam.deleteMany","ProjectTeam.groupBy","ProjectTeam.aggregate","Subscription.findUnique","Subscription.findUniqueOrThrow","Subscription.findFirst","Subscription.findFirstOrThrow","Subscription.findMany","Subscription.createOne","Subscription.createMany","Subscription.createManyAndReturn","Subscription.updateOne","Subscription.updateMany","Subscription.updateManyAndReturn","Subscription.upsertOne","Subscription.deleteOne","Subscription.deleteMany","_avg","_sum","Subscription.groupBy","Subscription.aggregate","Task.findUnique","Task.findUniqueOrThrow","Task.findFirst","Task.findFirstOrThrow","Task.findMany","Task.createOne","Task.createMany","Task.createManyAndReturn","Task.updateOne","Task.updateMany","Task.updateManyAndReturn","Task.upsertOne","Task.deleteOne","Task.deleteMany","Task.groupBy","Task.aggregate","Team.findUnique","Team.findUniqueOrThrow","Team.findFirst","Team.findFirstOrThrow","Team.findMany","Team.createOne","Team.createMany","Team.createManyAndReturn","Team.updateOne","Team.updateMany","Team.updateManyAndReturn","Team.upsertOne","Team.deleteOne","Team.deleteMany","Team.groupBy","Team.aggregate","TeamMembership.findUnique","TeamMembership.findUniqueOrThrow","TeamMembership.findFirst","TeamMembership.findFirstOrThrow","TeamMembership.findMany","TeamMembership.createOne","TeamMembership.createMany","TeamMembership.createManyAndReturn","TeamMembership.updateOne","TeamMembership.updateMany","TeamMembership.updateManyAndReturn","TeamMembership.upsertOne","TeamMembership.deleteOne","TeamMembership.deleteMany","TeamMembership.groupBy","TeamMembership.aggregate","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","User.upsertOne","User.deleteOne","User.deleteMany","User.groupBy","User.aggregate","AND","OR","NOT","id","email","passwordHash","fullName","UserStatus","status","deletedAt","createdAt","updatedAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","every","some","none","teamId","userId","organizationId","name","description","projectId","sprintId","parentTaskId","creatorId","assigneeId","title","TaskStatus","TaskPriority","priority","PaymentGateway","gateway","transactionId","amount","currency","PaymentStatus","planName","expiresAt","assignedAt","Role","role","OrganizationMembershipStatus","slug","unique_team_name_per_organization","projectId_teamId","teamId_userId","organizationId_userId","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
-  graph: "mwVQkAENBAAAmQIAIAYAAL0CACAPAAC-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QADhAgAhyAEBAN4CACHJAQEA3gIAId8BAACpA98BIgIAAAAFACAaAABXACAHsAEBAN4CACG1AQAAqgPhASK3AUAA4QIAIbgBQADhAgAhyAEBAN4CACHJAQEA3gIAId8BAACpA98BIgIAAAADACAaAABZACACAAAAAwAgGgAAWQAgAwAAAAUAICEAAFIAICIAAFcAIAEAAAAFACABAAAAAwAgAwwAAIgEACAnAACKBAAgKAAAiQQAIAqtAQAAtAIAMK4BAABgABCvAQAAtAIAMLABAQCGAgAhtQEAALYC4QEitwFAAIkCACG4AUAAiQIAIcgBAQCGAgAhyQEBAIYCACHfAQAAtQLfASIDAAAAAwAgAQAAXwAwJgAAYAAgAwAAAAMAIAEAAAQAMAIAAAUAIAEAAAAsACABAAAALAAgAwAAACoAIAEAACsAMAIAACwAIAMAAAAqACABAAArADACAAAsACADAAAAKgAgAQAAKwAwAgAALAAgCwMAAIUEACAGAACGBAAgDQAAhwQAILABAQAAAAG1AQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAAByQEBAAAAAcoBAQAAAAHLAQEAAAABARoAAGgAIAiwAQEAAAABtQEBAAAAAbYBQAAAAAG3AUAAAAABuAFAAAAAAckBAQAAAAHKAQEAAAABywEBAAAAAQEaAABqADABGgAAagAwCwMAAPADACAGAADxAwAgDQAA8gMAILABAQDeAgAhtQEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHJAQEA3gIAIcoBAQDeAgAhywEBAPACACECAAAALAAgGgAAbQAgCLABAQDeAgAhtQEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHJAQEA3gIAIcoBAQDeAgAhywEBAPACACECAAAAKgAgGgAAbwAgAgAAACoAIBoAAG8AIAMAAAAsACAhAABoACAiAABtACABAAAALAAgAQAAACoAIAUMAADtAwAgJwAA7wMAICgAAO4DACC2AQAA2gIAIMsBAADaAgAgC60BAACzAgAwrgEAAHYAEK8BAACzAgAwsAEBAIYCACG1AQEAhgIAIbYBQACIAgAhtwFAAIkCACG4AUAAiQIAIckBAQCGAgAhygEBAIYCACHLAQEAngIAIQMAAAAqACABAAB1ADAmAAB2ACAD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AAAAFAAgIQAAqgEAICIAALIBACABAAAAFAAgAQAAABIAIAkMAADbAwAgJwAA3QMAICgAANwDACC2AQAA2gIAIMsBAADaAgAgzQEAANoCACDOAQAA2gIAIM8BAADaAgAg0AEAANoCACAQrQEAAKECADCuAQAAvgEAEK8BAAChAgAwsAEBAIYCACG1AQAAogLTASK2AUAAiAIAIbcBQACJAgAhuAFAAIkCACHLAQEAngIAIcwBAQCGAgAhzQEBAJ4CACHOAQEAngIAIc8BAQCeAgAh0AEBAJ4CACHRAQEAhgIAIdQBAACjAtQBIgMAAAASACABAAC9AQAwJgAAvgEAIAMAAAASACABAAATADACAAAUACABAAAAKAAgAQAAACgAIAMAAAAmACABAAAnADACAAAoACADAAAAJgAgAQAAJwAwAgAAKAAgAwAAACYAIAEAACcAMAIAACgAIAoDAADYAwAgBQAA2QMAIA8AANoDACCwAQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAAByQEBAAAAAcoBAQAAAAHLAQEAAAABARoAAMYBACAHsAEBAAAAAbYBQAAAAAG3AUAAAAABuAFAAAAAAckBAQAAAAHKAQEAAAABywEBAAAAAQEaAADIAQAwARoAAMgBADAKAwAAvgMAIAUAAL8DACAPAADAAwAgsAEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHJAQEA3gIAIcoBAQDeAgAhywEBAPACACECAAAAKAAgGgAAywEAIAewAQEA3gIAIbYBQADgAgAhtwFAAOECACG4AUAA4QIAIckBAQDeAgAhygEBAN4CACHLAQEA8AIAIQIAAAAmACAaAADNAQAgAgAAACYAIBoAAM0BACADAAAAKAAgIQAAxgEAICIAAMsBACABAAAAKAAgAQAAACYAIAUMAAC7AwAgJwAAvQMAICgAALwDACC2AQAA2gIAIMsBAADaAgAgCq0BAACdAgAwrgEAANQBABCvAQAAnQIAMLABAQCGAgAhtgFAAIgCACG3AUAAiQIAIbgBQACJAgAhyQEBAIYCACHKAQEAhgIAIcsBAQCeAgAhAwAAACYAIAEAANMBADAmAADUAQAgAwAAACYAIAEAACcAMAIAACgAIAEAAAAKACABAAAACgAgAwAAAAgAIAEAAAkAMAIAAAoAIAMAAAAI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_AUAAAAABwAFAAIoCACEIuQECAAAAAboBAgAAAAS7AQIAAAAEvAECAAAAAb0BAgAAAAG-AQIAAAABvwECAAAAAcABAgCLAgAhCLkBQAAAAAG6AUAAAAAEuwFAAAAABLwBQAAAAAG9AUAAAAABvgFAAAAAAb8BQAAAAAHAAUAAjAIAIQsMAACOAgAgJwAAjwIAICgAAI8CACC5AUAAAAABugFAAAAABbsBQAAAAAW8AUAAAAABvQFAAAAAAb4BQAAAAAG_AUAAAAABwAFAAI0CACEIuQECAAAAAboBAgAAAAW7AQIAAAAFvAECAAAAAb0BAgAAAAG-AQIAAAABvwECAAAAAcABAgCOAgAhCLkBQAAAAAG6AUAAAAAFuwFAAAAABbwBQAAAAAG9AUAAAAABvgFAAAAAAb8BQAAAAAHAAUAAjwIAIQcMAACLAgAgJwAAkQIAICgAAJECACC5AQAAALUBAroBAAAAtQEIuwEAAAC1AQjAAQAAkAK1ASIEuQEAAAC1AQK6AQAAALUBCLsBAAAAtQEIwAEAAJECtQEiDgwAAIsCACAnAACTAgAgKAAAkwIAILkBAQAAAAG6AQEAAAAEuwEBAAAABLwBAQAAAAG9AQEAAAABvgEBAAAAAb8BAQAAAAHAAQEAkgIAIcEBAQAAAAHCAQEAAAABwwEBAAAAAQu5AQEAAAABugEBAAAABLsBAQAAAAS8AQEAAAABvQEBAAAAAb4BAQAAAAG_AQEAAAABwAEBAJMCACHBAQEAAAABwgEBAAAAAcMBAQAAAAEPBAAAmQIAIBEAAJoCACASAACbAgAgEwAAmwIAIK0BAACUAgAwrgEAABgAEK8BAACUAgAwsAEBAJUCACGxAQEAlQIAIbIBAQCVAgAhswEBAJUCACG1AQAAlgK1ASK2AUAAlwIAIbcBQACYAgAhuAFAAJgCACELuQEBAAAAAboBAQAAAAS7AQEAAAAEvAEBAAAAAb0BAQAAAAG-AQEAAAABvwEBAAAAAcABAQCTAgAhwQEBAAAAAcIBAQAAAAHDAQEAAAABBLkBAAAAtQECugEAAAC1AQi7AQAAALUBCMABAACRArUBIgi5AUAAAAABugFAAAAABbsBQAAAAAW8AUAAAAABvQFAAAAAAb4BQAAAAAG_AUAAAAABwAFAAI8CACEIuQFAAAAAAboBQAAAAAS7AUAAAAAEvAFAAAAAAb0BQAAAAAG-AUAAAAABvwFAAAAAAcABQACMAgAhA8QBAAADACDFAQAAAwAgxgEAAAMAIAPEAQAACAAgxQEAAAgAIMYBAAAIACADxAEAABIAIMUBAAASACDGAQAAEgAgB60BAACcAgAwrgEAAOoBABCvAQAAnAIAMLcBQACJAgAhuAFAAIkCACHHAQEAhgIAIcgBAQCGAgAhCq0BAACdAgAwrgEAANQBABCvAQAAnQIAMLABAQCGAgAhtgFAAIgCACG3AUAAiQIAIbgBQACJAgAhyQEBAIYCACHKAQEAhgIAIcsBAQCeAgAhDgwAAI4CACAnAACgAgAgKAAAoAIAILkBAQAAAAG6AQEAAAAFuwEBAAAABbwBAQAAAAG9AQEAAAABvgEBAAAAAb8BAQAAAAHAAQEAnwIAIcEBAQAAAAHCAQEAAAABwwEBAAAAAQ4MAACOAgAgJwAAoAIAICgAAKACACC5AQEAAAABugEBAAAABbsBAQAAAAW8AQEAAAABvQEBAAAAAb4BAQAAAAG_AQEAAAABwAEBAJ8CACHBAQEAAAABwgEBAAAAAcMBAQAAAAELuQEBAAAAAboBAQAAAAW7AQEAAAAFvAEBAAAAAb0BAQAAAAG-AQEAAAABvwEBAAAAAcABAQCgAgAhwQEBAAAAAcIBAQAAAAHDAQEAAAABEK0BAAChAgAwrgEAAL4BABCvAQAAoQIAMLABAQCGAgAhtQEAAKIC0wEitgFAAIgCACG3AUAAiQIAIbgBQACJAgAhywEBAJ4CACHMAQEAhgIAIc0BAQCeAgAhzgEBAJ4CACHPAQEAngIAIdABAQCeAgAh0QEBAIYCACHUAQAAowLUASIHDAAAiwIAICcAAKcCACAoAACnAgAguQEAAADTAQK6AQAAANMBCLsBAAAA0wEIwAEAAKYC0wEiBwwAAIsCACAnAAClAgAgKAAApQIAILkBAAAA1AECugEAAADUAQi7AQAAANQBCMABAACkAtQBIgcMAACLAgAgJwAApQIAICgAAKUCACC5AQAAANQBAroBAAAA1AEIuwEAAADUAQjAAQAApALUASIEuQEAAADUAQK6AQAAANQBCLsBAAAA1AEIwAEAAKUC1AEiBwwAAIsCACAnAACnAgAgKAAApwIAILkBAAAA0wECugEAAADTAQi7AQAAANMBCMABAACmAtMBIgS5AQAAANMBAroBAAAA0wEIuwEAAADTAQjAAQAApwLTASIOrQEAAKgCADCuAQAAogEAEK8BAACoAgAwsAEBAIYCACG1AQAAqwLbASK3AUAAiQIAIbgBQACJAgAhyQEBAIYCACHWAQAAqQLWASLXAQEAhgIAIdgBEACqAgAh2QEBAIYCACHbAQEAhgIAIdwBQACIAgAhBwwAAIsCACAnAACxAgAgKAAAsQIAILkBAAAA1gECugEAAADWAQi7AQAAANYBCMABAACwAtYBIg0MAACLAgAgJwAArwIAICgAAK8CACBpAACvAgAgagAArwIAILkBEAAAAAG6ARAAAAAEuwEQAAAABLwBEAAAAAG9ARAAAAABvgEQAAAAAb8BEAAAAAHAARAArgIAIQcMAACLAgAgJwAArQIAICgAAK0CACC5AQAAANsBAroBAAAA2wEIuwEAAADbAQjAAQAArALbASIHDAAAiwIAICcAAK0CACAoAACtAgAguQEAAADbAQK6AQAAANsBCLsBAAAA2wEIwAEAAKwC2wEiBLkBAAAA2wECugEAAADbAQi7AQAAANsBCMABAACtAtsBIg0MAACLAgAgJwAArwIAICgAAK8CACBpAACvAgAgagAArwIAILkBEAAAAAG6ARAAAAAEuwEQAAAABLwBEAAAAAG9ARAAAAABvgEQAAAAAb8BEAAAAAHAARAArgIAIQi5ARAAAAABugEQAAAABLsBEAAAAAS8ARAAAAABvQEQAAAAAb4BEAAAAAG_ARAAAAABwAEQAK8CACEHDAAAiwIAICcAALECACAoAACxAgAguQEAAADWAQK6AQAAANYBCLsBAAAA1gEIwAEAALAC1gEiBLkBAAAA1gECugEAAADWAQi7AQAAANYBCMABAACxAtYBIgatAQAAsgIAMK4BAACMAQAQrwEAALICADDHAQEAhgIAIcwBAQCGAgAh3QFAAIkCACELrQEAALMCADCuAQAAdgAQrwEAALMCADCwAQEAhgIAIbUBAQCGAgAhtgFAAIgCACG3AUAAiQIAIbgBQACJAgAhyQEBAIYCACHKAQEAhgIAIcsBAQCeAgAhCq0BAAC0AgAwrgEAAGAAEK8BAAC0AgAwsAEBAIYCACG1AQAAtgLhASK3AUAAiQIAIbgBQACJAgAhyAEBAIYCACHJAQEAhgIAId8BAAC1At8BIgcMAACLAgAgJwAAugIAICgAALoCACC5AQAAAN8BAroBAAAA3wEIuwEAAADfAQjAAQAAuQLfASIHDAAAiwIAICcAALgCACAoAAC4AgAguQEAAADhAQK6AQAAAOEBCLsBAAAA4QEIwAEAALcC4QEiBwwAAIsCACAnAAC4AgAgKAAAuAIAILkBAAAA4QECugEAAADhAQi7AQAAAOEBCMABAAC3AuEBIgS5AQAAAOEBAroBAAAA4QEIuwEAAADhAQjAAQAAuALhASIHDAAAiwIAICcAALoCACAoAAC6AgAguQEAAADfAQK6AQAAAN8BCLsBAAAA3wEIwAEAALkC3wEiBLkBAAAA3wECugEAAADfAQi7AQAAAN8BCMABAAC6At8BIgmtAQAAuwIAMK4BAABKABCvAQAAuwIAMLABAQCGAgAhtgFAAIgCACG3AUAAiQIAIbgBQACJAgAhygEBAIYCACHhAQEAhgIAIQ0EAACZAgAgBgAAvQIAIA8AAL4CACAUAAC_AgAgrQEAALwCADCuAQAANwAQrwEAALwCADCwAQEAlQIAIbYBQACXAgAhtwFAAJgCACG4AUAAmAIAIcoBAQCVAgAh4QEBAJUCACEDxAEAACYAIMUBAAAmACDGAQAAJgAgA8QBAAAqACDFAQAAKgAgxgEAACoAIAPEAQAALgAgxQEAAC4AIMYBAAAuACAPAwAAxAIAIK0BAADAAgAwrgEAAC4AEK8BAADAAgAwsAEBAJUCACG1AQAAwwLbASK3AUAAmAIAIbgBQACYAgAhyQEBAJUCACHWAQAAwQLWASLXAQEAlQIAIdgBEADCAgAh2QEBAJUCACHbAQEAlQIAIdwBQACXAgAhBLkBAAAA1gECugEAAADWAQi7AQAAANYBCMABAACxAtYBIgi5ARAAAAABugEQAAAABLsBEAAAAAS8ARAAAAABvQEQAAAAAb4BEAAAAAG_ARAAAAABwAEQAK8CACEEuQEAAADbAQK6AQAAANsBCLsBAAAA2wEIwAEAAK0C2wEiDwQAAJkCACAGAAC9AgAgDwAAvgIAIBQAAL8CACCtAQAAvAIAMK4BAAA3ABCvAQAAvAIAMLABAQCVAgAhtgFAAJcCACG3AUAAmAIAIbgBQACYAgAhygEBAJUCACHhAQEAlQIAIeYBAAA3ACDnAQAANwAgDgMAAMQCACAGAADHAgAgDQAAmwIAIK0BAADFAgAwrgEAACoAEK8BAADFAgAwsAEBAJUCACG1AQEAlQIAIbYBQACXAgAhtwFAAJgCACG4AUAAmAIAIckBAQCVAgAhygEBAJUCACHLAQEAxgIAIQu5AQEAAAABugEBAAAABbsBAQAAAAW8AQEAAAABvQEBAAAAAb4BAQAAAAG_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_QIAMPABAADtAgAwByEAAIoFACAiAACTBQAg6AEAAIsFACDpAQAAkgUAIOwBAAAYACDtAQAAGAAg7gEAAO0BACAQBwAAggMAIAkAAIMDACAKAACEAwAgCwAAhQMAILABAQAAAAG1AQAAANMBArYBQAAAAAG3AUAAAAABuAFAAAAAAcsBAQAAAAHMAQEAAAABzQEBAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdQBAAAA1AECAgAAABQAICEAAIEDACADAAAAFAAgIQAAgQMAICIAAP8CACABGgAAkQUAMAIAAAAUACAaAAD_AgAgAgAAAO4CACAaAAD-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_BAAgIgAAggUAIOgBAACABQAg6QEAAIEFACDuAQAAKAAgBA4AAJ4DACC3AUAAAAABuAFAAAAAAccBAQAAAAEDIQAA_wQAIOgBAACABQAg7gEAACgAIAcDAACuAwAgsAEBAAAAAbUBAAAA4QECtwFAAAAAAbgBQAAAAAHJAQEAAAAB3wEAAADfAQICAAAABQAgIQAArQMAIAMAAAAFACAhAACtAwAgIgAAqwMAIAEaAAD-BAAwDQMAAMQCACAQAADVAgAgrQEAANcCADCuAQAAAwAQrwEAANcCADCwAQEAAAABtQEAANkC4QEitwFAAJgCACG4AUAAmAIAIcgBAQCVAgAhyQEBAJUCACHfAQAA2ALfASLlAQAA1gIAIAIAAAAFACAaAACrAwAgAgAAAKcDACAaAACoAwAgCq0BAACmAwAwrgEAAKcDABCvAQAApgMAMLABAQCVAgAhtQEAANkC4QEitwFAAJgCACG4AUAAmAIAIcgBAQCVAgAhyQEBAJUCACHfAQAA2ALfASIKrQEAAKYDADCuAQAApwMAEK8BAACmAwAwsAEBAJUCACG1AQAA2QLhASK3AUAAmAIAIbgBQACYAgAhyAEBAJUCACHJAQEAlQIAId8BAADYAt8BIgawAQEA3gIAIbUBAACqA-EBIrcBQADhAgAhuAFAAOECACHJAQEA3gIAId8BAACpA98BIgHrAQAAAN8BAgHrAQAAAOEBAgcDAACsAwAgsAEBAN4CACG1AQAAqgPhASK3AUAA4QIAIbgBQADhAgAhyQEBAN4CACHfAQAAqQPfASIFIQAA-QQAICIAAPwEACDoAQAA-gQAIOkBAAD7BAAg7gEAAAEAIAcDAACuAwAgsAEBAAAAAbUBAAAA4QECtwFAAAAAAbgBQAAAAAHJAQEAAAAB3wEAAADfAQIDIQAA-QQAIOgBAAD6BAAg7gEAAAEAIAQhAACfAwAw6AEAAKADADDqAQAAogMAIO4BAACjAwAwBCEAAJEDADDoAQAAkgMAMOoBAACUAwAg7gEAAJUDADAEIQAAiAMAMOgBAACJAwAw6gEAAIsDACDuAQAA6gIAMAQhAADmAgAw6AEAAOcCADDqAQAA6QIAIO4BAADqAgAwAAAAAAAABSEAAPQEACAiAAD3BAAg6AEAAPUEACDpAQAA9gQAIO4BAADtAQAgAyEAAPQEACDoAQAA9QQAIO4BAADtAQAgAAAABSEAAOgEACAiAADyBAAg6AEAAOkEACDpAQAA8QQAIO4BAAABACALIQAAzwMAMCIAANMDADDoAQAA0AMAMOkBAADRAwAw6gEAANIDACDrAQAAlQMAMOwBAACVAwAw7QEAAJUDADDuAQAAlQMAMO8BAADUAwAw8AEAAJgDADALIQAAwQMAMCIAAMYDADDoAQAAwgMAMOkBAADDAwAw6gEAAMQDACDrAQAAxQMAMOwBAADFAwAw7QEAAMUDADDuAQAAxQMAMO8BAADHAwAw8AEAAMgDADADBwAAzgMAIMwBAQAAAAHdAUAAAAABAgAAAA8AICEAAM0DACADAAAADwAgIQAAzQMAICIAAMsDACABGgAA8AQAMAkHAADNAgAgDgAA0gIAIK0BAADRAgAwrgEAAA0AEK8BAADRAgAwxwEBAJUCACHMAQEAlQIAId0BQACYAgAh4wEAANACACACAAAADwAgGgAAywMAIAIAAADJAwAgGgAAygMAIAatAQAAyAMAMK4BAADJAwAQrwEAAMgDADDHAQEAlQIAIcwBAQCVAgAh3QFAAJgCACEGrQEAAMgDADCuAQAAyQMAEK8BAADIAwAwxwEBAJUCACHMAQEAlQIAId0BQACYAgAhAswBAQDeAgAh3QFAAOECACEDBwAAzAMAIMwBAQDeAgAh3QFAAOECACEFIQAA6wQAICIAAO4EACDoAQAA7AQAIOkBAADtBAAg7gEAACwAIAMHAADOAwAgzAEBAAAAAd0BQAAAAAEDIQAA6wQAIOgBAADsBAAg7gEAACwAIAQQAAC6AwAgtwFAAAAAAbgBQAAAAAHIAQEAAAABAgAAAAoAICEAANcDACADAAAACgAgIQAA1wMAICIAANYDACABGgAA6gQAMAIAAAAKACAaAADWAwAgAgAAAJkDACAaAADVAwAgA7cBQADhAgAhuAFAAOECACHIAQEA3gIAIQQQAAC5AwAgtwFAAOECACG4AUAA4QIAIcgBAQDeAgAhBBAAALoDACC3AUAAAAABuAFAAAAAAcgBAQAAAAEDIQAA6AQAIOgBAADpBAAg7gEAAAEAIAQhAADPAwAw6AEAANADADDqAQAA0gMAIO4BAACVAwAwBCEAAMEDADDoAQAAwgMAMOoBAADEAwAg7gEAAMUDADAAAAAAAAAAAAHrAQAAANYBAgXrARAAAAAB8QEQAAAAAfIBEAAAAAHzARAAAAAB9AEQAAAAAQHrAQAAANsBAgUhAADjBAAgIgAA5gQAIOgBAADkBAAg6QEAAOUEACDuAQAAAQAgAyEAAOMEACDoAQAA5AQAIO4BAAABACAAAAAFIQAA3gQAICIAAOEEACDoAQAA3wQAIOkBAADgBAAg7gEAACgAIAMhAADeBAAg6AEAAN8EACDuAQAAKAAgAAAABSEAANcEACAiAADcBAAg6AEAANgEACDpAQAA2wQAIO4BAAABACALIQAA_AMAMCIAAIAEADDoAQAA_QMAMOkBAAD-AwAw6gEAAP8DACDrAQAAxQMAMOwBAADFAwAw7QEAAMUDADDuAQAAxQMAMO8BAACBBAAw8AEAAMgDADALIQAA8wMAMCIAAPcDADDoAQAA9AMAMOkBAAD1AwAw6gEAAPYDACDrAQAA6gIAMOwBAADqAgAw7QEAAOoCADDuAQAA6gIAMO8BAAD4AwAw8AEAAO0CADAQCAAAhwMAIAkAAIMDACAKAACEAwAgCwAAhQMAILABAQAAAAG1AQAAANMBArYBQAAAAAG3AUAAAAABuAFAAAAAAcsBAQAAAAHNAQEAAAABzgEBAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdQBAAAA1AECAgAAABQAICEAAPsDACADAAAAFAAgIQAA-wMAICIAAPoDACABGgAA2gQAMAIAAAAUACAaAAD6AwAgAgAAAO4CACAaAAD5AwAgDLABAQDeAgAhtQEAAPEC0wEitgFAAOACACG3AUAA4QIAIbgBQADhAgAhywEBAPACACHNAQEA8AIAIc4BAQDwAgAhzwEBAPACACHQAQEA8AIAIdEBAQDeAgAh1AEAAPIC1AEiEAgAAPUCACAJAAD2AgAgCgAA9wIAIAsAAIADACCwAQEA3gIAIbUBAADxAtMBIrYBQADgAgAhtwFAAOECACG4AUAA4QIAIcsBAQDwAgAhzQEBAPACACHOAQEA8AIAIc8BAQDwAgAh0AEBAPACACHRAQEA3gIAIdQBAADyAtQBIhAIAACHAwAgCQAAgwMAIAoAAIQDACALAACFAwAgsAEBAAAAAbUBAAAA0wECtgFAAAAAAbcBQAAAAAG4AUAAAAABywEBAAAAAc0BAQAAAAHOAQEAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB1AEAAADUAQIDDgAA7AMAIMcBAQAAAAHdAUAAAAABAgAAAA8AICEAAIQEACADAAAADwAgIQAAhAQAICIAAIMEACABGgAA2QQAMAIAAAAPACAaAACDBAAgAgAAAMkDACAaAACCBAAgAscBAQDeAgAh3QFAAOECACEDDgAA6wMAIMcBAQDeAgAh3QFAAOECACEDDgAA7AMAIMcBAQAAAAHdAUAAAAABAyEAANcEACDoAQAA2AQAIO4BAAABACAEIQAA_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_AwAgDwAAwAMAILABAQDeAgAhtgFAAOACACG3AUAA4QIAIbgBQADhAgAhygEBAN4CACHLAQEA8AIAIQgFAADZAwAgDwAA2gMAILABAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHKAQEAAAABywEBAAAAAQcQAACMBAAgsAEBAAAAAbUBAAAA4QECtwFAAAAAAbgBQAAAAAHIAQEAAAAB3wEAAADfAQICAAAABQAgIQAAwAQAIAMAAAAFACAhAADABAAgIgAAvwQAIAEaAADOBAAwAgAAAAUAIBoAAL8EACACAAAApwMAIBoAAL4EACAGsAEBAN4CACG1AQAAqgPhASK3AUAA4QIAIbgBQADhAgAhyAEBAN4CACHfAQAAqQPfASIHEAAAiwQAILABAQDeAgAhtQEAAKoD4QEitwFAAOECACG4AUAA4QIAIcgBAQDeAgAh3wEAAKkD3wEiBxAAAIwEACCwAQEAAAABtQEAAADhAQK3AUAAAAABuAFAAAAAAcgBAQAAAAHfAQAAAN8BAgQhAAC4BAAw6AEAALkEADDqAQAAuwQAIO4BAACjAwAwBCEAAKwEADDoAQAArQQAMOoBAACvBAAg7gEAALAEADAEIQAAoAQAMOgBAAChBAAw6gEAAKMEACDuAQAApAQAMAQhAACUBAAw6AEAAJUEADDqAQAAlwQAIO4BAACYBAAwAAAABQQAALMDACAGAADFBAAgDwAAxgQAIBQAAMcEACC2AQAA2gIAIAAFAwAAyAQAIAYAAMkEACANAAC1AwAgtgEAANoCACDLAQAA2gIAIAsHAADKBAAgCAAAywQAIAkAALUDACAKAADMBAAgCwAAzAQAILYBAADaAgAgywEAANoCACDNAQAA2gIAIM4BAADaAgAgzwEAANoCACDQAQAA2gIAIAUEAACzAwAgEQAAtAMAIBIAALUDACATAAC1AwAgtgEAANoCACAFAwAAyAQAIAUAALQDACAPAADJBAAgtgEAANoCACDLAQAA2gIAIAawAQEAAAABtQEAAADhAQK3AUAAAAABuAFAAAAAAcgBAQAAAAHfAQAAAN8BAgawAQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAABygEBAAAAAcsBAQAAAAEHsAEBAAAAAbUBAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHKAQEAAAABywEBAAAAAQqwAQEAAAABtQEAAADbAQK3AUAAAAABuAFAAAAAAdYBAAAA1gEC1wEBAAAAAdgBEAAAAAHZAQEAAAAB2wEBAAAAAdwBQAAAAAELEQAAsAMAIBIAALEDACATAACyAwAgsAEBAAAAAbEBAQAAAAGyAQEAAAABswEBAAAAAbUBAAAAtQECtgFAAAAAAbcBQAAAAAG4AUAAAAABAgAAAO0BACAhAADSBAAgAwAAABgAICEAANIEACAiAADWBAAgDQAAABgAIBEAAOMCACASAADkAgAgEwAA5QIAIBoAANYEACCwAQEA3gIAIbEBAQDeAgAhsgEBAN4CACGzAQEA3gIAIbUBAADfArUBIrYBQADgAgAhtwFAAOECACG4AUAA4QIAIQsRAADjAgAgEgAA5AIAIBMAAOUCACCwAQEA3gIAIbEBAQDeAgAhsgEBAN4CACGzAQEA3gIAIbUBAADfArUBIrYBQADgAgAhtwFAAOECACG4AUAA4QIAIQkEAADBBAAgBgAAwgQAIBQAAMQEACCwAQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAABygEBAAAAAeEBAQAAAAECAAAAAQAgIQAA1wQAIALHAQEAAAAB3QFAAAAAAQywAQEAAAABtQEAAADTAQK2AUAAAAABtwFAAAAAAbgBQAAAAAHLAQEAAAABzQEBAAAAAc4BAQAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHUAQAAANQBAgMAAAA3ACAhAADXBAAgIgAA3QQAIAsAAAA3ACAEAACQBAAgBgAAkQQAIBQAAJMEACAaAADdBAAgsAEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHKAQEA3gIAIeEBAQDeAgAhCQQAAJAEACAGAACRBAAgFAAAkwQAILABAQDeAgAhtgFAAOACACG3AUAA4QIAIbgBQADhAgAhygEBAN4CACHhAQEA3gIAIQkDAADYAwAgBQAA2QMAILABAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHJAQEAAAABygEBAAAAAcsBAQAAAAECAAAAKAAgIQAA3gQAIAMAAAAmACAhAADeBAAgIgAA4gQAIAsAAAAmACADAAC-AwAgBQAAvwMAIBoAAOIEACCwAQEA3gIAIbYBQADgAgAhtwFAAOECACG4AUAA4QIAIckBAQDeAgAhygEBAN4CACHLAQEA8AIAIQkDAAC-AwAgBQAAvwMAILABAQDeAgAhtgFAAOACACG3AUAA4QIAIbgBQADhAgAhyQEBAN4CACHKAQEA3gIAIcsBAQDwAgAhCQQAAMEEACAGAADCBAAgDwAAwwQAILABAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHKAQEAAAAB4QEBAAAAAQIAAAABACAhAADjBAAgAwAAADcAICEAAOMEACAiAADnBAAgCwAAADcAIAQAAJAEACAGAACRBAAgDwAAkgQAIBoAAOcEACCwAQEA3gIAIbYBQADgAgAhtwFAAOECACG4AUAA4QIAIcoBAQDeAgAh4QEBAN4CACEJBAAAkAQAIAYAAJEEACAPAACSBAAgsAEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHKAQEA3gIAIeEBAQDeAgAhCQQAAMEEACAPAADDBAAgFAAAxAQAILABAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHKAQEAAAAB4QEBAAAAAQIAAAABACAhAADoBAAgA7cBQAAAAAG4AUAAAAAByAEBAAAAAQoDAACFBAAgDQAAhwQAILABAQAAAAG1AQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAAByQEBAAAAAcoBAQAAAAHLAQEAAAABAgAAACwAICEAAOsEACADAAAAKgAgIQAA6wQAICIAAO8EACAMAAAAKgAgAwAA8AMAIA0AAPIDACAaAADvBAAgsAEBAN4CACG1AQEA3gIAIbYBQADgAgAhtwFAAOECACG4AUAA4QIAIckBAQDeAgAhygEBAN4CACHLAQEA8AIAIQoDAADwAwAgDQAA8gMAILABAQDeAgAhtQEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHJAQEA3gIAIcoBAQDeAgAhywEBAPACACECzAEBAAAAAd0BQAAAAAEDAAAANwAgIQAA6AQAICIAAPMEACALAAAANwAgBAAAkAQAIA8AAJIEACAUAACTBAAgGgAA8wQAILABAQDeAgAhtgFAAOACACG3AUAA4QIAIbgBQADhAgAhygEBAN4CACHhAQEA3gIAIQkEAACQBAAgDwAAkgQAIBQAAJMEACCwAQEA3gIAIbYBQADgAgAhtwFAAOECACG4AUAA4QIAIcoBAQDeAgAh4QEBAN4CACELBAAArwMAIBIAALEDACATAACyAwAgsAEBAAAAAbEBAQAAAAGyAQEAAAABswEBAAAAAbUBAAAAtQECtgFAAAAAAbcBQAAAAAG4AUAAAAABAgAAAO0BACAhAAD0BAAgAwAAABgAICEAAPQEACAiAAD4BAAgDQAAABgAIAQAAOICACASAADkAgAgEwAA5QIAIBoAAPgEACCwAQEA3gIAIbEBAQDeAgAhsgEBAN4CACGzAQEA3gIAIbUBAADfArUBIrYBQADgAgAhtwFAAOECACG4AUAA4QIAIQsEAADiAgAgEgAA5AIAIBMAAOUCACCwAQEA3gIAIbEBAQDeAgAhsgEBAN4CACGzAQEA3gIAIbUBAADfArUBIrYBQADgAgAhtwFAAOECACG4AUAA4QIAIQkGAADCBAAgDwAAwwQAIBQAAMQEACCwAQEAAAABtgFAAAAAAbcBQAAAAAG4AUAAAAABygEBAAAAAeEBAQAAAAECAAAAAQAgIQAA-QQAIAMAAAA3ACAhAAD5BAAgIgAA_QQAIAsAAAA3ACAGAACRBAAgDwAAkgQAIBQAAJMEACAaAAD9BAAgsAEBAN4CACG2AUAA4AIAIbcBQADhAgAhuAFAAOECACHKAQEA3gIAIeEBAQDeAgAhCQYAAJEEACAPAACSBAAgFAAAkwQAILABAQDeAgAhtgFAAOACACG3AUAA4QIAIbgBQADhAgAhygEBAN4CACHhAQEA3gIAIQawAQEAAAABtQEAAADhAQK3AUAAAAABuAFAAAAAAckBAQAAAAHfAQAAAN8BAgkDAADYAwAgDwAA2gMAILABAQAAAAG2AUAAAAABtwFAAAAAAbgBQAAAAAHJAQEAAAABygEBAAAAAcsBAQAAAAECAAAAKAAgIQAA_wQAIAMAAAAmACAhAAD_BAAgIgAAgwUAIAsAAAAmACADAAC-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_Dx1AEB5CAR9EDyBFESNGASRHASVIDylLEipMFitNAixOAi1PAi5QAi9RAjBTAjFVDzJWFzNYAjRaDzVbGDZcAjddAjheDzlhGTpiHTtjBzxkBz1lBz5mBz9nB0BpB0FrD0JsHkNuB0RwD0VxH0ZyB0dzB0h0D0l3IEp4JEt5Bkx6Bk17Bk58Bk99BlB_BlGBAQ9SggElU4QBBlSGAQ9VhwEmVogBBleJAQZYigEPWY0BJ1qOAStbjwENXJABDV2RAQ1ekgENX5MBDWCVAQ1hlwEPYpgBLGOaAQ1knAEPZZ0BLWaeAQ1nnwENaKABD2ujAS5spAE0baUBCG6mAQhvpwEIcKgBCHGpAQhyqwEIc60BD3SuATV1swEIdrUBD3e2ATZ4ugEIebsBCHq8AQ97vwE3fMABO33BAQV-wgEFf8MBBYABxAEFgQHFAQWCAccBBYMByQEPhAHKATyFAcwBBYYBzgEPhwHPAT2IAdABBYkB0QEFigHSAQ-LAdUBPowB1gFCjQHXAQSOAdgBBI8B2QEEkAHaAQSRAdsBBJIB3QEEkwHfAQ-UAeABQ5UB4gEElgHkAQ-XAeUBRJgB5gEEmQHnAQSaAegBD5sB6wFFnAHsAUmdAe4BA54B7wEDnwHxAQOgAfIBA6EB8wEDogH1AQOjAfcBD6QB-AFKpQH6AQOmAfwBD6cB_QFLqAH-AQOpAf8BA6oBgAIPqwGDAkysAYQCUA"
+  strings: JSON.parse('["where","orderBy","cursor","organization","memberships","teamMembers","project","parentTask","subTasks","creator","assignee","sprint","_count","tasks","sprints","teams","team","projects","user","teamMemberships","createdTasks","assignedTasks","subscriptions","Organization.findUnique","Organization.findUniqueOrThrow","Organization.findFirst","Organization.findFirstOrThrow","Organization.findMany","data","Organization.createOne","Organization.createMany","Organization.createManyAndReturn","Organization.updateOne","Organization.updateMany","Organization.updateManyAndReturn","create","update","Organization.upsertOne","Organization.deleteOne","Organization.deleteMany","having","_min","_max","Organization.groupBy","Organization.aggregate","OrganizationMembership.findUnique","OrganizationMembership.findUniqueOrThrow","OrganizationMembership.findFirst","OrganizationMembership.findFirstOrThrow","OrganizationMembership.findMany","OrganizationMembership.createOne","OrganizationMembership.createMany","OrganizationMembership.createManyAndReturn","OrganizationMembership.updateOne","OrganizationMembership.updateMany","OrganizationMembership.updateManyAndReturn","OrganizationMembership.upsertOne","OrganizationMembership.deleteOne","OrganizationMembership.deleteMany","OrganizationMembership.groupBy","OrganizationMembership.aggregate","Project.findUnique","Project.findUniqueOrThrow","Project.findFirst","Project.findFirstOrThrow","Project.findMany","Project.createOne","Project.createMany","Project.createManyAndReturn","Project.updateOne","Project.updateMany","Project.updateManyAndReturn","Project.upsertOne","Project.deleteOne","Project.deleteMany","Project.groupBy","Project.aggregate","ProjectTeam.findUnique","ProjectTeam.findUniqueOrThrow","ProjectTeam.findFirst","ProjectTeam.findFirstOrThrow","ProjectTeam.findMany","ProjectTeam.createOne","ProjectTeam.createMany","ProjectTeam.createManyAndReturn","ProjectTeam.updateOne","ProjectTeam.updateMany","ProjectTeam.updateManyAndReturn","ProjectTeam.upsertOne","ProjectTeam.deleteOne","ProjectTeam.deleteMany","ProjectTeam.groupBy","ProjectTeam.aggregate","Sprint.findUnique","Sprint.findUniqueOrThrow","Sprint.findFirst","Sprint.findFirstOrThrow","Sprint.findMany","Sprint.createOne","Sprint.createMany","Sprint.createManyAndReturn","Sprint.updateOne","Sprint.updateMany","Sprint.updateManyAndReturn","Sprint.upsertOne","Sprint.deleteOne","Sprint.deleteMany","Sprint.groupBy","Sprint.aggregate","Subscription.findUnique","Subscription.findUniqueOrThrow","Subscription.findFirst","Subscription.findFirstOrThrow","Subscription.findMany","Subscription.createOne","Subscription.createMany","Subscription.createManyAndReturn","Subscription.updateOne","Subscription.updateMany","Subscription.updateManyAndReturn","Subscription.upsertOne","Subscription.deleteOne","Subscription.deleteMany","_avg","_sum","Subscription.groupBy","Subscription.aggregate","Task.findUnique","Task.findUniqueOrThrow","Task.findFirst","Task.findFirstOrThrow","Task.findMany","Task.createOne","Task.createMany","Task.createManyAndReturn","Task.updateOne","Task.updateMany","Task.updateManyAndReturn","Task.upsertOne","Task.deleteOne","Task.deleteMany","Task.groupBy","Task.aggregate","Team.findUnique","Team.findUniqueOrThrow","Team.findFirst","Team.findFirstOrThrow","Team.findMany","Team.createOne","Team.createMany","Team.createManyAndReturn","Team.updateOne","Team.updateMany","Team.updateManyAndReturn","Team.upsertOne","Team.deleteOne","Team.deleteMany","Team.groupBy","Team.aggregate","TeamMembership.findUnique","TeamMembership.findUniqueOrThrow","TeamMembership.findFirst","TeamMembership.findFirstOrThrow","TeamMembership.findMany","TeamMembership.createOne","TeamMembership.createMany","TeamMembership.createManyAndReturn","TeamMembership.updateOne","TeamMembership.updateMany","TeamMembership.updateManyAndReturn","TeamMembership.upsertOne","TeamMembership.deleteOne","TeamMembership.deleteMany","TeamMembership.groupBy","TeamMembership.aggregate","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","User.upsertOne","User.deleteOne","User.deleteMany","User.groupBy","User.aggregate","AND","OR","NOT","id","email","passwordHash","fullName","UserStatus","status","deletedAt","createdAt","updatedAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","every","some","none","teamId","userId","organizationId","name","description","projectId","sprintId","parentTaskId","creatorId","assigneeId","title","TaskStatus","TaskPriority","priority","PaymentGateway","gateway","transactionId","amount","currency","PaymentStatus","planName","expiresAt","goal","SprintStatus","startDate","endDate","assignedAt","Role","role","OrganizationMembershipStatus","slug","unique_team_name_per_organization","projectId_teamId","teamId_userId","organizationId_userId","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
+  graph: "8gVZoAENBAAAuQIAIA8AAOECACARAADiAgAgFgAA4wIAIL8BAADgAgAwwAEAAD8AEMEBAADgAgAwwgEBAAAAAcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdwBAQC1AgAh9wEBAAAAAQEAAAABACAMAwAA6AIAIBIAAP0CACC_AQAA_wIAMMABAAADABDBAQAA_wIAMMIBAQC1AgAhxwEAAIED9wEiyQFAALgCACHKAUAAuAIAIdoBAQC1AgAh2wEBALUCACH1AQAAgAP1ASICAwAAkQUAIBIAAJYFACANAwAA6AIAIBIAAP0CACC_AQAA_wIAMMABAAADABDBAQAA_wIAMMIBAQAAAAHHAQAAgQP3ASLJAUAAuAIAIcoBQAC4AgAh2gEBALUCACHbAQEAtQIAIfUBAACAA_UBIvsBAAD-AgAgAwAAAAMAIAEAAAQAMAIAAAUAIAMAAAADACABAAAEADACAAAFACAJEAAA-gIAIBIAAP0CACC_AQAA_AIAMMABAAAIABDBAQAA_AIAMMkBQAC4AgAhygFAALgCACHZAQEAtQIAIdoBAQC1AgAhAhAAAJgFACASAACWBQAgChAAAPoCACASAAD9AgAgvwEAAPwCADDAAQAACAAQwQEAAPwCADDJAUAAuAIAIcoBQAC4AgAh2QEBALUCACHaAQEAtQIAIfoBAAD7AgAgAwAAAAgAIAEAAAkAMAIAAAoAIAMAAAAIACABAAAJADACAAAKACAIBgAA8gIAIBAAAPoCACC_AQAA-QIAMMABAAANABDBAQAA-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_AQAA6QIAMMABAAAyABDBAQAA6QIAMMIBAQAAAAHHAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh3AEBALUCACHdAQEA6gIAIQMAAAAyACABAAAzADACAAA0ACAPAwAA6AIAIL8BAADkAgAwwAEAADYAEMEBAADkAgAwwgEBALUCACHHAQAA5wLtASLJAUAAuAIAIcoBQAC4AgAh2wEBALUCACHoAQAA5QLoASLpAQEAtQIAIeoBEADmAgAh6wEBALUCACHtAQEAtQIAIe4BQAC3AgAhAgMAAJEFACDuAQAAggMAIA8DAADoAgAgvwEAAOQCADDAAQAANgAQwQEAAOQCADDCAQEAAAABxwEAAOcC7QEiyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh6AEAAOUC6AEi6QEBAAAAAeoBEADmAgAh6wEBALUCACHtAQEAtQIAIe4BQAC3AgAhAwAAADYAIAEAADcAMAIAADgAIAEAAAADACABAAAALgAgAQAAADIAIAEAAAA2ACABAAAAAQAgDQQAALkCACAPAADhAgAgEQAA4gIAIBYAAOMCACC_AQAA4AIAMMABAAA_ABDBAQAA4AIAMMIBAQC1AgAhyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh3AEBALUCACH3AQEAtQIAIQUEAADdAwAgDwAAjgUAIBEAAI8FACAWAACQBQAgyAEAAIIDACADAAAAPwAgAQAAQAAwAgAAAQAgAwAAAD8AIAEAAEAAMAIAAAEAIAMAAAA_ACABAABAADACAAABACAKBAAAigUAIA8AAIsFACARAACMBQAgFgAAjQUAIMIBAQAAAAHIAUAAAAAByQFAAAAAAcoBQAAAAAHcAQEAAAAB9wEBAAAAAQEcAABEACAGwgEBAAAAAcgBQAAAAAHJAUAAAAABygFAAAAAAdwBAQAAAAH3AQEAAAABARwAAEYAMAEcAABGADAKBAAA2QQAIA8AANoEACARAADbBAAgFgAA3AQAIMIBAQCGAwAhyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3AEBAIYDACH3AQEAhgMAIQIAAAABACAcAABJACAGwgEBAIYDACHIAUAAiAMAIckBQACJAwAhygFAAIkDACHcAQEAhgMAIfcBAQCGAwAhAgAAAD8AIBwAAEsAIAIAAAA_ACAcAABLACADAAAAAQAgIwAARAAgJAAASQAgAQAAAAEAIAEAAAA_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_AQAA1gIAMMABAACUAQAQwQEAANYCADDZAQEApgIAId4BAQCmAgAh8wFAAKkCACEDAAAADQAgAQAAkwEAMCgAAJQBACADAAAADQAgAQAADgAwAgAADwAgAQAAABMAIAEAAAATACADAAAAEQAgAQAAEgAwAgAAEwAgAwAAABEAIAEAABIAMAIAABMAIAMAAAARACABAAASADACAAATACAMBgAAoQQAIA0AAKIEACDCAQEAAAABxwEAAADxAQLIAUAAAAAByQFAAAAAAcoBQAAAAAHcAQEAAAAB3gEBAAAAAe8BAQAAAAHxAUAAAAAB8gFAAAAAAQEcAACcAQAgCsIBAQAAAAHHAQAAAPEBAsgBQAAAAAHJAUAAAAABygFAAAAAAdwBAQAAAAHeAQEAAAAB7wEBAAAAAfEBQAAAAAHyAUAAAAABARwAAJ4BADABHAAAngEAMAwGAACWBAAgDQAAlwQAIMIBAQCGAwAhxwEAAJUE8QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3AEBAIYDACHeAQEAhgMAIe8BAQCYAwAh8QFAAIgDACHyAUAAiAMAIQIAAAATACAcAAChAQAgCsIBAQCGAwAhxwEAAJUE8QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3AEBAIYDACHeAQEAhgMAIe8BAQCYAwAh8QFAAIgDACHyAUAAiAMAIQIAAAARACAcAACjAQAgAgAAABEAIBwAAKMBACADAAAAEwAgIwAAnAEAICQAAKEBACABAAAAEwAgAQAAABEAIAcMAACSBAAgKQAAlAQAICoAAJMEACDIAQAAggMAIO8BAACCAwAg8QEAAIIDACDyAQAAggMAIA2_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_gEAMAEcAAD-AQAwBhAAAMYDACASAADjAwAgyQFAAIkDACHKAUAAiQMAIdkBAQCGAwAh2gEBAIYDACECAAAACgAgHAAAgQIAIATJAUAAiQMAIcoBQACJAwAh2QEBAIYDACHaAQEAhgMAIQIAAAAIACAcAACDAgAgAgAAAAgAIBwAAIMCACADAAAACgAgIwAA_AEAICQAAIECACABAAAACgAgAQAAAAgAIAMMAADgAwAgKQAA4gMAICoAAOEDACAHvwEAALwCADDAAQAAigIAEMEBAAC8AgAwyQFAAKkCACHKAUAAqQIAIdkBAQCmAgAh2gEBAKYCACEDAAAACAAgAQAAiQIAMCgAAIoCACADAAAACAAgAQAACQAwAgAACgAgDwQAALkCACATAAC6AgAgFAAAuwIAIBUAALsCACC_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-AgAh4AEBAL4CACHhAQEAvgIAIeIBAQC-AgAh4wEBAKYCACHmAQAAwwLmASIHDAAAqwIAICkAAMcCACAqAADHAgAgywEAAADlAQLMAQAAAOUBCM0BAAAA5QEI0gEAAMYC5QEiBwwAAKsCACApAADFAgAgKgAAxQIAIMsBAAAA5gECzAEAAADmAQjNAQAAAOYBCNIBAADEAuYBIgcMAACrAgAgKQAAxQIAICoAAMUCACDLAQAAAOYBAswBAAAA5gEIzQEAAADmAQjSAQAAxALmASIEywEAAADmAQLMAQAAAOYBCM0BAAAA5gEI0gEAAMUC5gEiBwwAAKsCACApAADHAgAgKgAAxwIAIMsBAAAA5QECzAEAAADlAQjNAQAAAOUBCNIBAADGAuUBIgTLAQAAAOUBAswBAAAA5QEIzQEAAADlAQjSAQAAxwLlASIOvwEAAMgCADDAAQAAwAEAEMEBAADIAgAwwgEBAKYCACHHAQAAywLtASLJAUAAqQIAIcoBQACpAgAh2wEBAKYCACHoAQAAyQLoASLpAQEApgIAIeoBEADKAgAh6wEBAKYCACHtAQEApgIAIe4BQACoAgAhBwwAAKsCACApAADRAgAgKgAA0QIAIMsBAAAA6AECzAEAAADoAQjNAQAAAOgBCNIBAADQAugBIg0MAACrAgAgKQAAzwIAICoAAM8CACB7AADPAgAgfAAAzwIAIMsBEAAAAAHMARAAAAAEzQEQAAAABM4BEAAAAAHPARAAAAAB0AEQAAAAAdEBEAAAAAHSARAAzgIAIQcMAACrAgAgKQAAzQIAICoAAM0CACDLAQAAAO0BAswBAAAA7QEIzQEAAADtAQjSAQAAzALtASIHDAAAqwIAICkAAM0CACAqAADNAgAgywEAAADtAQLMAQAAAO0BCM0BAAAA7QEI0gEAAMwC7QEiBMsBAAAA7QECzAEAAADtAQjNAQAAAO0BCNIBAADNAu0BIg0MAACrAgAgKQAAzwIAICoAAM8CACB7AADPAgAgfAAAzwIAIMsBEAAAAAHMARAAAAAEzQEQAAAABM4BEAAAAAHPARAAAAAB0AEQAAAAAdEBEAAAAAHSARAAzgIAIQjLARAAAAABzAEQAAAABM0BEAAAAATOARAAAAABzwEQAAAAAdABEAAAAAHRARAAAAAB0gEQAM8CACEHDAAAqwIAICkAANECACAqAADRAgAgywEAAADoAQLMAQAAAOgBCM0BAAAA6AEI0gEAANAC6AEiBMsBAAAA6AECzAEAAADoAQjNAQAAAOgBCNIBAADRAugBIg2_AQAA0gIAMMABAACqAQAQwQEAANICADDCAQEApgIAIccBAADTAvEBIsgBQACoAgAhyQFAAKkCACHKAUAAqQIAIdwBAQCmAgAh3gEBAKYCACHvAQEAvgIAIfEBQACoAgAh8gFAAKgCACEHDAAAqwIAICkAANUCACAqAADVAgAgywEAAADxAQLMAQAAAPEBCM0BAAAA8QEI0gEAANQC8QEiBwwAAKsCACApAADVAgAgKgAA1QIAIMsBAAAA8QECzAEAAADxAQjNAQAAAPEBCNIBAADUAvEBIgTLAQAAAPEBAswBAAAA8QEIzQEAAADxAQjSAQAA1QLxASIGvwEAANYCADDAAQAAlAEAEMEBAADWAgAw2QEBAKYCACHeAQEApgIAIfMBQACpAgAhC78BAADXAgAwwAEAAH4AEMEBAADXAgAwwgEBAKYCACHHAQEApgIAIcgBQACoAgAhyQFAAKkCACHKAUAAqQIAIdsBAQCmAgAh3AEBAKYCACHdAQEAvgIAIQq_AQAA2AIAMMABAABoABDBAQAA2AIAMMIBAQCmAgAhxwEAANoC9wEiyQFAAKkCACHKAUAAqQIAIdoBAQCmAgAh2wEBAKYCACH1AQAA2QL1ASIHDAAAqwIAICkAAN4CACAqAADeAgAgywEAAAD1AQLMAQAAAPUBCM0BAAAA9QEI0gEAAN0C9QEiBwwAAKsCACApAADcAgAgKgAA3AIAIMsBAAAA9wECzAEAAAD3AQjNAQAAAPcBCNIBAADbAvcBIgcMAACrAgAgKQAA3AIAICoAANwCACDLAQAAAPcBAswBAAAA9wEIzQEAAAD3AQjSAQAA2wL3ASIEywEAAAD3AQLMAQAAAPcBCM0BAAAA9wEI0gEAANwC9wEiBwwAAKsCACApAADeAgAgKgAA3gIAIMsBAAAA9QECzAEAAAD1AQjNAQAAAPUBCNIBAADdAvUBIgTLAQAAAPUBAswBAAAA9QEIzQEAAAD1AQjSAQAA3gL1ASIJvwEAAN8CADDAAQAAUgAQwQEAAN8CADDCAQEApgIAIcgBQACoAgAhyQFAAKkCACHKAUAAqQIAIdwBAQCmAgAh9wEBAKYCACENBAAAuQIAIA8AAOECACARAADiAgAgFgAA4wIAIL8BAADgAgAwwAEAAD8AEMEBAADgAgAwwgEBALUCACHIAUAAtwIAIckBQAC4AgAhygFAALgCACHcAQEAtQIAIfcBAQC1AgAhA9YBAAAuACDXAQAALgAg2AEAAC4AIAPWAQAAMgAg1wEAADIAINgBAAAyACAD1gEAADYAINcBAAA2ACDYAQAANgAgDwMAAOgCACC_AQAA5AIAMMABAAA2ABDBAQAA5AIAMMIBAQC1AgAhxwEAAOcC7QEiyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh6AEAAOUC6AEi6QEBALUCACHqARAA5gIAIesBAQC1AgAh7QEBALUCACHuAUAAtwIAIQTLAQAAAOgBAswBAAAA6AEIzQEAAADoAQjSAQAA0QLoASIIywEQAAAAAcwBEAAAAATNARAAAAAEzgEQAAAAAc8BEAAAAAHQARAAAAAB0QEQAAAAAdIBEADPAgAhBMsBAAAA7QECzAEAAADtAQjNAQAAAO0BCNIBAADNAu0BIg8EAAC5AgAgDwAA4QIAIBEAAOICACAWAADjAgAgvwEAAOACADDAAQAAPwAQwQEAAOACADDCAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdwBAQC1AgAh9wEBALUCACH8AQAAPwAg_QEAAD8AIA8DAADoAgAgDQAAuwIAIA4AAOsCACAPAADsAgAgvwEAAOkCADDAAQAAMgAQwQEAAOkCADDCAQEAtQIAIccBAQC1AgAhyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh2wEBALUCACHcAQEAtQIAId0BAQDqAgAhC8sBAQAAAAHMAQEAAAAFzQEBAAAABc4BAQAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHSAQEAwAIAIdMBAQAAAAHUAQEAAAAB1QEBAAAAAQPWAQAAEQAg1wEAABEAINgBAAARACAD1gEAAA0AINcBAAANACDYAQAADQAgAtsBAQAAAAHcAQEAAAABDQMAAOgCACAFAAC6AgAgEQAA7AIAIL8BAADuAgAwwAEAAC4AEMEBAADuAgAwwgEBALUCACHIAUAAtwIAIckBQAC4AgAhygFAALgCACHbAQEAtQIAIdwBAQC1AgAh3QEBAOoCACEWBgAA8gIAIAcAAPMCACAIAAC7AgAgCQAA9AIAIAoAAPQCACALAAD1AgAgvwEAAO8CADDAAQAAFQAQwQEAAO8CADDCAQEAtQIAIccBAADwAuUBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAId0BAQDqAgAh3gEBALUCACHfAQEA6gIAIeABAQDqAgAh4QEBAOoCACHiAQEA6gIAIeMBAQC1AgAh5gEAAPEC5gEiBMsBAAAA5QECzAEAAADlAQjNAQAAAOUBCNIBAADHAuUBIgTLAQAAAOYBAswBAAAA5gEIzQEAAADmAQjSAQAAxQLmASIRAwAA6AIAIA0AALsCACAOAADrAgAgDwAA7AIAIL8BAADpAgAwwAEAADIAEMEBAADpAgAwwgEBALUCACHHAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh3AEBALUCACHdAQEA6gIAIfwBAAAyACD9AQAAMgAgGAYAAPICACAHAADzAgAgCAAAuwIAIAkAAPQCACAKAAD0AgAgCwAA9QIAIL8BAADvAgAwwAEAABUAEMEBAADvAgAwwgEBALUCACHHAQAA8ALlASLIAUAAtwIAIckBQAC4AgAhygFAALgCACHdAQEA6gIAId4BAQC1AgAh3wEBAOoCACHgAQEA6gIAIeEBAQDqAgAh4gEBAOoCACHjAQEAtQIAIeYBAADxAuYBIvwBAAAVACD9AQAAFQAgEQQAALkCACATAAC6AgAgFAAAuwIAIBUAALsCACC_AQAAtAIAMMABAAAbABDBAQAAtAIAMMIBAQC1AgAhwwEBALUCACHEAQEAtQIAIcUBAQC1AgAhxwEAALYCxwEiyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh_AEAABsAIP0BAAAbACARBgAA8gIAIA0AALsCACC_AQAA9gIAMMABAAARABDBAQAA9gIAMMIBAQC1AgAhxwEAAPcC8QEiyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh3AEBALUCACHeAQEAtQIAIe8BAQDqAgAh8QFAALcCACHyAUAAtwIAIfwBAAARACD9AQAAEQAgDwYAAPICACANAAC7AgAgvwEAAPYCADDAAQAAEQAQwQEAAPYCADDCAQEAtQIAIccBAAD3AvEBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdwBAQC1AgAh3gEBALUCACHvAQEA6gIAIfEBQAC3AgAh8gFAALcCACEEywEAAADxAQLMAQAAAPEBCM0BAAAA8QEI0gEAANUC8QEiAtkBAQAAAAHeAQEAAAABCAYAAPICACAQAAD6AgAgvwEAAPkCADDAAQAADQAQwQEAAPkCADDZAQEAtQIAId4BAQC1AgAh8wFAALgCACEPAwAA6AIAIAUAALoCACARAADsAgAgvwEAAO4CADDAAQAALgAQwQEAAO4CADDCAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh3AEBALUCACHdAQEA6gIAIfwBAAAuACD9AQAALgAgAtkBAQAAAAHaAQEAAAABCRAAAPoCACASAAD9AgAgvwEAAPwCADDAAQAACAAQwQEAAPwCADDJAUAAuAIAIcoBQAC4AgAh2QEBALUCACHaAQEAtQIAIREEAAC5AgAgEwAAugIAIBQAALsCACAVAAC7AgAgvwEAALQCADDAAQAAGwAQwQEAALQCADDCAQEAtQIAIcMBAQC1AgAhxAEBALUCACHFAQEAtQIAIccBAAC2AscBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAIfwBAAAbACD9AQAAGwAgAtoBAQAAAAHbAQEAAAABDAMAAOgCACASAAD9AgAgvwEAAP8CADDAAQAAAwAQwQEAAP8CADDCAQEAtQIAIccBAACBA_cBIskBQAC4AgAhygFAALgCACHaAQEAtQIAIdsBAQC1AgAh9QEAAIAD9QEiBMsBAAAA9QECzAEAAAD1AQjNAQAAAPUBCNIBAADeAvUBIgTLAQAAAPcBAswBAAAA9wEIzQEAAAD3AQjSAQAA3AL3ASIAAAAAAYECAQAAAAEBgQIAAADHAQIBgQJAAAAAAQGBAkAAAAABCyMAAMkDADAkAADOAwAw_gEAAMoDADD_AQAAywMAMIACAADMAwAggQIAAM0DADCCAgAAzQMAMIMCAADNAwAwhAIAAM0DADCFAgAAzwMAMIYCAADQAwAwCyMAALsDADAkAADAAwAw_gEAALwDADD_AQAAvQMAMIACAAC-AwAggQIAAL8DADCCAgAAvwMAMIMCAAC_AwAwhAIAAL8DADCFAgAAwQMAMIYCAADCAwAwCyMAALIDADAkAAC2AwAw_gEAALMDADD_AQAAtAMAMIACAAC1AwAggQIAAJIDADCCAgAAkgMAMIMCAACSAwAwhAIAAJIDADCFAgAAtwMAMIYCAACVAwAwCyMAAI4DADAkAACTAwAw_gEAAI8DADD_AQAAkAMAMIACAACRAwAggQIAAJIDADCCAgAAkgMAMIMCAACSAwAwhAIAAJIDADCFAgAAlAMAMIYCAACVAwAwEQYAAKsDACAHAACxAwAgCAAArAMAIAkAAK0DACALAACvAwAgwgEBAAAAAccBAAAA5QECyAFAAAAAAckBQAAAAAHKAUAAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBAAAAAeEBAQAAAAHjAQEAAAAB5gEAAADmAQICAAAAFwAgIwAAsAMAIAMAAAAXACAjAACwAwAgJAAAmwMAIAEcAADyBQAwFgYAAPICACAHAADzAgAgCAAAuwIAIAkAAPQCACAKAAD0AgAgCwAA9QIAIL8BAADvAgAwwAEAABUAEMEBAADvAgAwwgEBAAAAAccBAADwAuUBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAId0BAQDqAgAh3gEBALUCACHfAQEA6gIAIeABAQDqAgAh4QEBAOoCACHiAQEA6gIAIeMBAQC1AgAh5gEAAPEC5gEiAgAAABcAIBwAAJsDACACAAAAlgMAIBwAAJcDACAQvwEAAJUDADDAAQAAlgMAEMEBAACVAwAwwgEBALUCACHHAQAA8ALlASLIAUAAtwIAIckBQAC4AgAhygFAALgCACHdAQEA6gIAId4BAQC1AgAh3wEBAOoCACHgAQEA6gIAIeEBAQDqAgAh4gEBAOoCACHjAQEAtQIAIeYBAADxAuYBIhC_AQAAlQMAMMABAACWAwAQwQEAAJUDADDCAQEAtQIAIccBAADwAuUBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAId0BAQDqAgAh3gEBALUCACHfAQEA6gIAIeABAQDqAgAh4QEBAOoCACHiAQEA6gIAIeMBAQC1AgAh5gEAAPEC5gEiDMIBAQCGAwAhxwEAAJkD5QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3QEBAJgDACHeAQEAhgMAId8BAQCYAwAh4AEBAJgDACHhAQEAmAMAIeMBAQCGAwAh5gEAAJoD5gEiAYECAQAAAAEBgQIAAADlAQIBgQIAAADmAQIRBgAAnAMAIAcAAJ0DACAIAACeAwAgCQAAnwMAIAsAAKADACDCAQEAhgMAIccBAACZA-UBIsgBQACIAwAhyQFAAIkDACHKAUAAiQMAId0BAQCYAwAh3gEBAIYDACHfAQEAmAMAIeABAQCYAwAh4QEBAJgDACHjAQEAhgMAIeYBAACaA-YBIgUjAADgBQAgJAAA8AUAIP4BAADhBQAg_wEAAO8FACCEAgAANAAgByMAANgFACAkAADtBQAg_gEAANkFACD_AQAA7AUAIIICAAAVACCDAgAAFQAghAIAABcAIAsjAAChAwAwJAAApQMAMP4BAACiAwAw_wEAAKMDADCAAgAApAMAIIECAACSAwAwggIAAJIDADCDAgAAkgMAMIQCAACSAwAwhQIAAKYDADCGAgAAlQMAMAcjAADeBQAgJAAA6gUAIP4BAADfBQAg_wEAAOkFACCCAgAAGwAggwIAABsAIIQCAACNAgAgByMAANoFACAkAADnBQAg_gEAANsFACD_AQAA5gUAIIICAAARACCDAgAAEQAghAIAABMAIBEGAACrAwAgCAAArAMAIAkAAK0DACAKAACuAwAgCwAArwMAIMIBAQAAAAHHAQAAAOUBAsgBQAAAAAHJAUAAAAABygFAAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeEBAQAAAAHiAQEAAAAB4wEBAAAAAeYBAAAA5gECAgAAABcAICMAAKoDACADAAAAFwAgIwAAqgMAICQAAKgDACABHAAA5QUAMAIAAAAXACAcAACoAwAgAgAAAJYDACAcAACnAwAgDMIBAQCGAwAhxwEAAJkD5QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3QEBAJgDACHeAQEAhgMAId8BAQCYAwAh4QEBAJgDACHiAQEAmAMAIeMBAQCGAwAh5gEAAJoD5gEiEQYAAJwDACAIAACeAwAgCQAAnwMAIAoAAKkDACALAACgAwAgwgEBAIYDACHHAQAAmQPlASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHdAQEAmAMAId4BAQCGAwAh3wEBAJgDACHhAQEAmAMAIeIBAQCYAwAh4wEBAIYDACHmAQAAmgPmASIHIwAA3AUAICQAAOMFACD-AQAA3QUAIP8BAADiBQAgggIAABsAIIMCAAAbACCEAgAAjQIAIBEGAACrAwAgCAAArAMAIAkAAK0DACAKAACuAwAgCwAArwMAIMIBAQAAAAHHAQAAAOUBAsgBQAAAAAHJAUAAAAABygFAAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeEBAQAAAAHiAQEAAAAB4wEBAAAAAeYBAAAA5gECAyMAAOAFACD-AQAA4QUAIIQCAAA0ACAEIwAAoQMAMP4BAACiAwAwgAIAAKQDACCEAgAAkgMAMAMjAADeBQAg_gEAAN8FACCEAgAAjQIAIAMjAADcBQAg_gEAAN0FACCEAgAAjQIAIAMjAADaBQAg_gEAANsFACCEAgAAEwAgEQYAAKsDACAHAACxAwAgCAAArAMAIAkAAK0DACALAACvAwAgwgEBAAAAAccBAAAA5QECyAFAAAAAAckBQAAAAAHKAUAAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBAAAAAeEBAQAAAAHjAQEAAAAB5gEAAADmAQIDIwAA2AUAIP4BAADZBQAghAIAABcAIBEGAACrAwAgBwAAsQMAIAgAAKwDACAKAACuAwAgCwAArwMAIMIBAQAAAAHHAQAAAOUBAsgBQAAAAAHJAUAAAAABygFAAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABAQAAAAHiAQEAAAAB4wEBAAAAAeYBAAAA5gECAgAAABcAICMAALoDACADAAAAFwAgIwAAugMAICQAALkDACABHAAA1wUAMAIAAAAXACAcAAC5AwAgAgAAAJYDACAcAAC4AwAgDMIBAQCGAwAhxwEAAJkD5QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3QEBAJgDACHeAQEAhgMAId8BAQCYAwAh4AEBAJgDACHiAQEAmAMAIeMBAQCGAwAh5gEAAJoD5gEiEQYAAJwDACAHAACdAwAgCAAAngMAIAoAAKkDACALAACgAwAgwgEBAIYDACHHAQAAmQPlASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHdAQEAmAMAId4BAQCGAwAh3wEBAJgDACHgAQEAmAMAIeIBAQCYAwAh4wEBAIYDACHmAQAAmgPmASIRBgAAqwMAIAcAALEDACAIAACsAwAgCgAArgMAIAsAAK8DACDCAQEAAAABxwEAAADlAQLIAUAAAAAByQFAAAAAAcoBQAAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAQEAAAAB4gEBAAAAAeMBAQAAAAHmAQAAAOYBAgQQAADIAwAgyQFAAAAAAcoBQAAAAAHZAQEAAAABAgAAAAoAICMAAMcDACADAAAACgAgIwAAxwMAICQAAMUDACABHAAA1gUAMAoQAAD6AgAgEgAA_QIAIL8BAAD8AgAwwAEAAAgAEMEBAAD8AgAwyQFAALgCACHKAUAAuAIAIdkBAQC1AgAh2gEBALUCACH6AQAA-wIAIAIAAAAKACAcAADFAwAgAgAAAMMDACAcAADEAwAgB78BAADCAwAwwAEAAMMDABDBAQAAwgMAMMkBQAC4AgAhygFAALgCACHZAQEAtQIAIdoBAQC1AgAhB78BAADCAwAwwAEAAMMDABDBAQAAwgMAMMkBQAC4AgAhygFAALgCACHZAQEAtQIAIdoBAQC1AgAhA8kBQACJAwAhygFAAIkDACHZAQEAhgMAIQQQAADGAwAgyQFAAIkDACHKAUAAiQMAIdkBAQCGAwAhBSMAANEFACAkAADUBQAg_gEAANIFACD_AQAA0wUAIIQCAAAwACAEEAAAyAMAIMkBQAAAAAHKAUAAAAAB2QEBAAAAAQMjAADRBQAg_gEAANIFACCEAgAAMAAgBwMAANgDACDCAQEAAAABxwEAAAD3AQLJAUAAAAABygFAAAAAAdsBAQAAAAH1AQAAAPUBAgIAAAAFACAjAADXAwAgAwAAAAUAICMAANcDACAkAADVAwAgARwAANAFADANAwAA6AIAIBIAAP0CACC_AQAA_wIAMMABAAADABDBAQAA_wIAMMIBAQAAAAHHAQAAgQP3ASLJAUAAuAIAIcoBQAC4AgAh2gEBALUCACHbAQEAtQIAIfUBAACAA_UBIvsBAAD-AgAgAgAAAAUAIBwAANUDACACAAAA0QMAIBwAANIDACAKvwEAANADADDAAQAA0QMAEMEBAADQAwAwwgEBALUCACHHAQAAgQP3ASLJAUAAuAIAIcoBQAC4AgAh2gEBALUCACHbAQEAtQIAIfUBAACAA_UBIgq_AQAA0AMAMMABAADRAwAQwQEAANADADDCAQEAtQIAIccBAACBA_cBIskBQAC4AgAhygFAALgCACHaAQEAtQIAIdsBAQC1AgAh9QEAAIAD9QEiBsIBAQCGAwAhxwEAANQD9wEiyQFAAIkDACHKAUAAiQMAIdsBAQCGAwAh9QEAANMD9QEiAYECAAAA9QECAYECAAAA9wECBwMAANYDACDCAQEAhgMAIccBAADUA_cBIskBQACJAwAhygFAAIkDACHbAQEAhgMAIfUBAADTA_UBIgUjAADLBQAgJAAAzgUAIP4BAADMBQAg_wEAAM0FACCEAgAAAQAgBwMAANgDACDCAQEAAAABxwEAAAD3AQLJAUAAAAABygFAAAAAAdsBAQAAAAH1AQAAAPUBAgMjAADLBQAg_gEAAMwFACCEAgAAAQAgBCMAAMkDADD-AQAAygMAMIACAADMAwAghAIAAM0DADAEIwAAuwMAMP4BAAC8AwAwgAIAAL4DACCEAgAAvwMAMAQjAACyAwAw_gEAALMDADCAAgAAtQMAIIQCAACSAwAwBCMAAI4DADD-AQAAjwMAMIACAACRAwAghAIAAJIDADAAAAAAAAAFIwAAxgUAICQAAMkFACD-AQAAxwUAIP8BAADIBQAghAIAAI0CACADIwAAxgUAIP4BAADHBQAghAIAAI0CACAAAAAFIwAAugUAICQAAMQFACD-AQAAuwUAIP8BAADDBQAghAIAAAEAIAsjAAD5AwAwJAAA_QMAMP4BAAD6AwAw_wEAAPsDADCAAgAA_AMAIIECAAC_AwAwggIAAL8DADCDAgAAvwMAMIQCAAC_AwAwhQIAAP4DADCGAgAAwgMAMAsjAADrAwAwJAAA8AMAMP4BAADsAwAw_wEAAO0DADCAAgAA7gMAIIECAADvAwAwggIAAO8DADCDAgAA7wMAMIQCAADvAwAwhQIAAPEDADCGAgAA8gMAMAMGAAD4AwAg3gEBAAAAAfMBQAAAAAECAAAADwAgIwAA9wMAIAMAAAAPACAjAAD3AwAgJAAA9QMAIAEcAADCBQAwCQYAAPICACAQAAD6AgAgvwEAAPkCADDAAQAADQAQwQEAAPkCADDZAQEAtQIAId4BAQC1AgAh8wFAALgCACH5AQAA-AIAIAIAAAAPACAcAAD1AwAgAgAAAPMDACAcAAD0AwAgBr8BAADyAwAwwAEAAPMDABDBAQAA8gMAMNkBAQC1AgAh3gEBALUCACHzAUAAuAIAIQa_AQAA8gMAMMABAADzAwAQwQEAAPIDADDZAQEAtQIAId4BAQC1AgAh8wFAALgCACEC3gEBAIYDACHzAUAAiQMAIQMGAAD2AwAg3gEBAIYDACHzAUAAiQMAIQUjAAC9BQAgJAAAwAUAIP4BAAC-BQAg_wEAAL8FACCEAgAANAAgAwYAAPgDACDeAQEAAAAB8wFAAAAAAQMjAAC9BQAg_gEAAL4FACCEAgAANAAgBBIAAOQDACDJAUAAAAABygFAAAAAAdoBAQAAAAECAAAACgAgIwAAgQQAIAMAAAAKACAjAACBBAAgJAAAgAQAIAEcAAC8BQAwAgAAAAoAIBwAAIAEACACAAAAwwMAIBwAAP8DACADyQFAAIkDACHKAUAAiQMAIdoBAQCGAwAhBBIAAOMDACDJAUAAiQMAIcoBQACJAwAh2gEBAIYDACEEEgAA5AMAIMkBQAAAAAHKAUAAAAAB2gEBAAAAAQMjAAC6BQAg_gEAALsFACCEAgAAAQAgBCMAAPkDADD-AQAA-gMAMIACAAD8AwAghAIAAL8DADAEIwAA6wMAMP4BAADsAwAwgAIAAO4DACCEAgAA7wMAMAAAAAAAAAAAAYECAAAA6AECBYECEAAAAAGHAhAAAAABiAIQAAAAAYkCEAAAAAGKAhAAAAABAYECAAAA7QECBSMAALUFACAkAAC4BQAg_gEAALYFACD_AQAAtwUAIIQCAAABACADIwAAtQUAIP4BAAC2BQAghAIAAAEAIAAAAAGBAgAAAPEBAgUjAACvBQAgJAAAswUAIP4BAACwBQAg_wEAALIFACCEAgAANAAgCyMAAJgEADAkAACcBAAw_gEAAJkEADD_AQAAmgQAMIACAACbBAAggQIAAJIDADCCAgAAkgMAMIMCAACSAwAwhAIAAJIDADCFAgAAnQQAMIYCAACVAwAwEQYAAKsDACAHAACxAwAgCAAArAMAIAkAAK0DACAKAACuAwAgwgEBAAAAAccBAAAA5QECyAFAAAAAAckBQAAAAAHKAUAAAAAB3QEBAAAAAd4BAQAAAAHgAQEAAAAB4QEBAAAAAeIBAQAAAAHjAQEAAAAB5gEAAADmAQICAAAAFwAgIwAAoAQAIAMAAAAXACAjAACgBAAgJAAAnwQAIAEcAACxBQAwAgAAABcAIBwAAJ8EACACAAAAlgMAIBwAAJ4EACAMwgEBAIYDACHHAQAAmQPlASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHdAQEAmAMAId4BAQCGAwAh4AEBAJgDACHhAQEAmAMAIeIBAQCYAwAh4wEBAIYDACHmAQAAmgPmASIRBgAAnAMAIAcAAJ0DACAIAACeAwAgCQAAnwMAIAoAAKkDACDCAQEAhgMAIccBAACZA-UBIsgBQACIAwAhyQFAAIkDACHKAUAAiQMAId0BAQCYAwAh3gEBAIYDACHgAQEAmAMAIeEBAQCYAwAh4gEBAJgDACHjAQEAhgMAIeYBAACaA-YBIhEGAACrAwAgBwAAsQMAIAgAAKwDACAJAACtAwAgCgAArgMAIMIBAQAAAAHHAQAAAOUBAsgBQAAAAAHJAUAAAAABygFAAAAAAd0BAQAAAAHeAQEAAAAB4AEBAAAAAeEBAQAAAAHiAQEAAAAB4wEBAAAAAeYBAAAA5gECAyMAAK8FACD-AQAAsAUAIIQCAAA0ACAEIwAAmAQAMP4BAACZBAAwgAIAAJsEACCEAgAAkgMAMAAAAAUjAACqBQAgJAAArQUAIP4BAACrBQAg_wEAAKwFACCEAgAAMAAgAyMAAKoFACD-AQAAqwUAIIQCAAAwACAAAAAFIwAAogUAICQAAKgFACD-AQAAowUAIP8BAACnBQAghAIAAAEAIAsjAADBBAAwJAAAxgQAMP4BAADCBAAw_wEAAMMEADCAAgAAxAQAIIECAADFBAAwggIAAMUEADCDAgAAxQQAMIQCAADFBAAwhQIAAMcEADCGAgAAyAQAMAsjAAC4BAAwJAAAvAQAMP4BAAC5BAAw_wEAALoEADCAAgAAuwQAIIECAADvAwAwggIAAO8DADCDAgAA7wMAMIQCAADvAwAwhQIAAL0EADCGAgAA8gMAMAsjAACvBAAwJAAAswQAMP4BAACwBAAw_wEAALEEADCAAgAAsgQAIIECAACSAwAwggIAAJIDADCDAgAAkgMAMIQCAACSAwAwhQIAALQEADCGAgAAlQMAMBEHAACxAwAgCAAArAMAIAkAAK0DACAKAACuAwAgCwAArwMAIMIBAQAAAAHHAQAAAOUBAsgBQAAAAAHJAUAAAAABygFAAAAAAd0BAQAAAAHfAQEAAAAB4AEBAAAAAeEBAQAAAAHiAQEAAAAB4wEBAAAAAeYBAAAA5gECAgAAABcAICMAALcEACADAAAAFwAgIwAAtwQAICQAALYEACABHAAApgUAMAIAAAAXACAcAAC2BAAgAgAAAJYDACAcAAC1BAAgDMIBAQCGAwAhxwEAAJkD5QEiyAFAAIgDACHJAUAAiQMAIcoBQACJAwAh3QEBAJgDACHfAQEAmAMAIeABAQCYAwAh4QEBAJgDACHiAQEAmAMAIeMBAQCGAwAh5gEAAJoD5gEiEQcAAJ0DACAIAACeAwAgCQAAnwMAIAoAAKkDACALAACgAwAgwgEBAIYDACHHAQAAmQPlASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHdAQEAmAMAId8BAQCYAwAh4AEBAJgDACHhAQEAmAMAIeIBAQCYAwAh4wEBAIYDACHmAQAAmgPmASIRBwAAsQMAIAgAAKwDACAJAACtAwAgCgAArgMAIAsAAK8DACDCAQEAAAABxwEAAADlAQLIAUAAAAAByQFAAAAAAcoBQAAAAAHdAQEAAAAB3wEBAAAAAeABAQAAAAHhAQEAAAAB4gEBAAAAAeMBAQAAAAHmAQAAAOYBAgMQAACnBAAg2QEBAAAAAfMBQAAAAAECAAAADwAgIwAAwAQAIAMAAAAPACAjAADABAAgJAAAvwQAIAEcAAClBQAwAgAAAA8AIBwAAL8EACACAAAA8wMAIBwAAL4EACAC2QEBAIYDACHzAUAAiQMAIQMQAACmBAAg2QEBAIYDACHzAUAAiQMAIQMQAACnBAAg2QEBAAAAAfMBQAAAAAEKDQAAogQAIMIBAQAAAAHHAQAAAPEBAsgBQAAAAAHJAUAAAAABygFAAAAAAdwBAQAAAAHvAQEAAAAB8QFAAAAAAfIBQAAAAAECAAAAEwAgIwAAzAQAIAMAAAATACAjAADMBAAgJAAAywQAIAEcAACkBQAwDwYAAPICACANAAC7AgAgvwEAAPYCADDAAQAAEQAQwQEAAPYCADDCAQEAAAABxwEAAPcC8QEiyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh3AEBALUCACHeAQEAtQIAIe8BAQDqAgAh8QFAALcCACHyAUAAtwIAIQIAAAATACAcAADLBAAgAgAAAMkEACAcAADKBAAgDb8BAADIBAAwwAEAAMkEABDBAQAAyAQAMMIBAQC1AgAhxwEAAPcC8QEiyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh3AEBALUCACHeAQEAtQIAIe8BAQDqAgAh8QFAALcCACHyAUAAtwIAIQ2_AQAAyAQAMMABAADJBAAQwQEAAMgEADDCAQEAtQIAIccBAAD3AvEBIsgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdwBAQC1AgAh3gEBALUCACHvAQEA6gIAIfEBQAC3AgAh8gFAALcCACEJwgEBAIYDACHHAQAAlQTxASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHcAQEAhgMAIe8BAQCYAwAh8QFAAIgDACHyAUAAiAMAIQoNAACXBAAgwgEBAIYDACHHAQAAlQTxASLIAUAAiAMAIckBQACJAwAhygFAAIkDACHcAQEAhgMAIe8BAQCYAwAh8QFAAIgDACHyAUAAiAMAIQoNAACiBAAgwgEBAAAAAccBAAAA8QECyAFAAAAAAckBQAAAAAHKAUAAAAAB3AEBAAAAAe8BAQAAAAHxAUAAAAAB8gFAAAAAAQMjAACiBQAg_gEAAKMFACCEAgAAAQAgBCMAAMEEADD-AQAAwgQAMIACAADEBAAghAIAAMUEADAEIwAAuAQAMP4BAAC5BAAwgAIAALsEACCEAgAA7wMAMAQjAACvBAAw_gEAALAEADCAAgAAsgQAIIQCAACSAwAwAAAABSMAAJ0FACAkAACgBQAg_gEAAJ4FACD_AQAAnwUAIIQCAACNAgAgAyMAAJ0FACD-AQAAngUAIIQCAACNAgAgAAAACyMAAIEFADAkAACFBQAw_gEAAIIFADD_AQAAgwUAMIACAACEBQAggQIAAM0DADCCAgAAzQMAMIMCAADNAwAwhAIAAM0DADCFAgAAhgUAMIYCAADQAwAwCyMAAPUEADAkAAD6BAAw_gEAAPYEADD_AQAA9wQAMIACAAD4BAAggQIAAPkEADCCAgAA-QQAMIMCAAD5BAAwhAIAAPkEADCFAgAA-wQAMIYCAAD8BAAwCyMAAOkEADAkAADuBAAw_gEAAOoEADD_AQAA6wQAMIACAADsBAAggQIAAO0EADCCAgAA7QQAMIMCAADtBAAwhAIAAO0EADCFAgAA7wQAMIYCAADwBAAwCyMAAN0EADAkAADiBAAw_gEAAN4EADD_AQAA3wQAMIACAADgBAAggQIAAOEEADCCAgAA4QQAMIMCAADhBAAwhAIAAOEEADCFAgAA4wQAMIYCAADkBAAwCsIBAQAAAAHHAQAAAO0BAskBQAAAAAHKAUAAAAAB6AEAAADoAQLpAQEAAAAB6gEQAAAAAesBAQAAAAHtAQEAAAAB7gFAAAAAAQIAAAA4ACAjAADoBAAgAwAAADgAICMAAOgEACAkAADnBAAgARwAAJwFADAPAwAA6AIAIL8BAADkAgAwwAEAADYAEMEBAADkAgAwwgEBAAAAAccBAADnAu0BIskBQAC4AgAhygFAALgCACHbAQEAtQIAIegBAADlAugBIukBAQAAAAHqARAA5gIAIesBAQC1AgAh7QEBALUCACHuAUAAtwIAIQIAAAA4ACAcAADnBAAgAgAAAOUEACAcAADmBAAgDr8BAADkBAAwwAEAAOUEABDBAQAA5AQAMMIBAQC1AgAhxwEAAOcC7QEiyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh6AEAAOUC6AEi6QEBALUCACHqARAA5gIAIesBAQC1AgAh7QEBALUCACHuAUAAtwIAIQ6_AQAA5AQAMMABAADlBAAQwQEAAOQEADDCAQEAtQIAIccBAADnAu0BIskBQAC4AgAhygFAALgCACHbAQEAtQIAIegBAADlAugBIukBAQC1AgAh6gEQAOYCACHrAQEAtQIAIe0BAQC1AgAh7gFAALcCACEKwgEBAIYDACHHAQAAjwTtASLJAUAAiQMAIcoBQACJAwAh6AEAAI0E6AEi6QEBAIYDACHqARAAjgQAIesBAQCGAwAh7QEBAIYDACHuAUAAiAMAIQrCAQEAhgMAIccBAACPBO0BIskBQACJAwAhygFAAIkDACHoAQAAjQToASLpAQEAhgMAIeoBEACOBAAh6wEBAIYDACHtAQEAhgMAIe4BQACIAwAhCsIBAQAAAAHHAQAAAO0BAskBQAAAAAHKAUAAAAAB6AEAAADoAQLpAQEAAAAB6gEQAAAAAesBAQAAAAHtAQEAAAAB7gFAAAAAAQoNAADQBAAgDgAAzgQAIA8AAM8EACDCAQEAAAABxwEBAAAAAcgBQAAAAAHJAUAAAAABygFAAAAAAdwBAQAAAAHdAQEAAAABAgAAADQAICMAAPQEACADAAAANAAgIwAA9AQAICQAAPMEACABHAAAmwUAMA8DAADoAgAgDQAAuwIAIA4AAOsCACAPAADsAgAgvwEAAOkCADDAAQAAMgAQwQEAAOkCADDCAQEAAAABxwEBALUCACHIAUAAtwIAIckBQAC4AgAhygFAALgCACHbAQEAtQIAIdwBAQC1AgAh3QEBAOoCACECAAAANAAgHAAA8wQAIAIAAADxBAAgHAAA8gQAIAu_AQAA8AQAMMABAADxBAAQwQEAAPAEADDCAQEAtQIAIccBAQC1AgAhyAFAALcCACHJAUAAuAIAIcoBQAC4AgAh2wEBALUCACHcAQEAtQIAId0BAQDqAgAhC78BAADwBAAwwAEAAPEEABDBAQAA8AQAMMIBAQC1AgAhxwEBALUCACHIAUAAtwIAIckBQAC4AgAhygFAALgCACHbAQEAtQIAIdwBAQC1AgAh3QEBAOoCACEHwgEBAIYDACHHAQEAhgMAIcgBQACIAwAhyQFAAIkDACHKAUAAiQMAIdwBAQCGAwAh3QEBAJgDACEKDQAArgQAIA4AAKwEACAPAACtBAAgwgEBAIYDACHHAQEAhgMAIcgBQACIAwAhyQFAAIkDACHKAUAAiQMAIdwBAQCGAwAh3QEBAJgDACEKDQAA0AQAIA4AAM4EACAPAADPBAAgwgEBAAAAAccBAQAAAAHIAUAAAAAByQFAAAAAAcoBQAAAAAHcAQEAAAAB3QEBAAAAAQgFAACDBAAgEQAAhAQAIMIBAQAAAAHIAUAAAAAByQFAAAAAAcoBQAAAAAHcAQEAAAAB3QEBAAAAAQIAAAAwACAjAACABQAgAwAAADAAICMAAIAFACAkAAD_BAAgARwAAJoFADAOAwAA6AIAIAUAALoCACARAADsAgAgvwEAAO4CADDAAQAALgAQwQEAAO4CADDCAQEAAAAByAFAALcCACHJAUAAuAIAIcoBQAC4AgAh2wEBALUCACHcAQEAtQIAId0BAQDqAgAh-AEAAO0CACACAAAAMAAgHAAA_wQAIAIAAAD9BAAgHAAA_gQAIAq_AQAA_AQAMMABAAD9BAAQwQEAAPwEADDCAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh3AEBALUCACHdAQEA6gIAIQq_AQAA_AQAMMABAAD9BAAQwQEAAPwEADDCAQEAtQIAIcgBQAC3AgAhyQFAALgCACHKAUAAuAIAIdsBAQC1AgAh3AEBALUCACHdAQEA6gIAIQbCAQEAhgMAIcgBQACIAwAhyQFAAIkDACHKAUAAiQMAIdwBAQCGAwAh3QEBAJgDACEIBQAA6QMAIBEAAOoDACDCAQEAhgMAIcgBQACIAwAhyQFAAIkDACHKAUAAiQMAIdwBAQCGAwAh3QEBAJgDACEIBQAAgwQAIBEAAIQEACDCAQEAAAAByAFAAAAAAckBQAAAAAHKAUAAAAAB3AEBAAAAAd0BAQAAAAEHEgAA1QQAIMIBAQAAAAHHAQAAAPcBAskBQAAAAAHKAUAAAAAB2gEBAAAAAfUBAAAA9QECAgAAAAUAICMAAIkFACADAAAABQAgIwAAiQUAICQAAIgFACABHAAAmQUAMAIAAAAFACAcAACIBQAgAgAAANEDACAcAACHBQAgBsIBAQCGAwAhxwEAANQD9wEiyQFAAIkDACHKAUAAiQMAIdoBAQCGAwAh9QEAANMD9QEiBxIAANQEACDCAQEAhgMAIccBAADUA_cBIskBQACJAwAhygFAAIkDACHaAQEAhgMAIfUBAADTA_UBIgcSAADVBAAgwgEBAAAAAccBAAAA9wECyQFAAAAAAcoBQAAAAAHaAQEAAAAB9QEAAAD1AQIEIwAAgQUAMP4BAACCBQAwgAIAAIQFACCEAgAAzQMAMAQjAAD1BAAw_gEAAPYEADCAAgAA-AQAIIQCAAD5BAAwBCMAAOkEADD-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_ACAjAADLBQAgJAAAzwUAIAsAAAA_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-bAc_bQdAbgdBbwdCcQdDcxFEdCBFdgdGeBFHeSFIegdJewdKfBFLfyJMgAEmTYEBBk6CAQZPgwEGUIQBBlGFAQZShwEGU4kBEVSKASdVjAEGVo4BEVePAShYkAEGWZEBBlqSARFblQEpXJYBLV2XAQhemAEIX5kBCGCaAQhhmwEIYp0BCGOfARFkoAEuZaIBCGakARFnpQEvaKYBCGmnAQhqqAERa6sBMGysATRtrQEPbq4BD2-vAQ9wsAEPcbEBD3KzAQ9ztQERdLYBNXW4AQ92ugERd7sBNni8AQ95vQEPer4BEX3BATd-wgE9f8MBCYABxAEJgQHFAQmCAcYBCYMBxwEJhAHJAQmFAcsBEYYBzAE-hwHSAQmIAdQBEYkB1QE_igHaAQmLAdsBCYwB3AERjQHfAUCOAeABRI8B4QEFkAHiAQWRAeMBBZIB5AEFkwHlAQWUAecBBZUB6QERlgHqAUWXAewBBZgB7gERmQHvAUaaAfABBZsB8QEFnAHyARGdAfUBR54B9gFLnwH3AQSgAfgBBKEB-QEEogH6AQSjAfsBBKQB_QEEpQH_ARGmAYACTKcBggIEqAGEAhGpAYUCTaoBhgIEqwGHAgSsAYgCEa0BiwJOrgGMAlKvAY4CA7ABjwIDsQGRAgOyAZICA7MBkwIDtAGVAgO1AZcCEbYBmAJTtwGaAgO4AZwCEbkBnQJUugGeAgO7AZ8CA7wBoAIRvQGjAlW-AaQCWQ"
 };
 async function decodeBase64AsWasm(wasmBase64) {
   const { Buffer: Buffer2 } = await import("buffer");
@@ -295,6 +322,7 @@ __export(prismaNamespace_exports, {
   ProjectTeamScalarFieldEnum: () => ProjectTeamScalarFieldEnum,
   QueryMode: () => QueryMode,
   SortOrder: () => SortOrder,
+  SprintScalarFieldEnum: () => SprintScalarFieldEnum,
   Sql: () => Sql2,
   SubscriptionScalarFieldEnum: () => SubscriptionScalarFieldEnum,
   TaskScalarFieldEnum: () => TaskScalarFieldEnum,
@@ -340,6 +368,7 @@ var ModelName = {
   OrganizationMembership: "OrganizationMembership",
   Project: "Project",
   ProjectTeam: "ProjectTeam",
+  Sprint: "Sprint",
   Subscription: "Subscription",
   Task: "Task",
   Team: "Team",
@@ -383,6 +412,18 @@ var ProjectTeamScalarFieldEnum = {
   projectId: "projectId",
   teamId: "teamId",
   assignedAt: "assignedAt"
+};
+var SprintScalarFieldEnum = {
+  id: "id",
+  projectId: "projectId",
+  name: "name",
+  goal: "goal",
+  status: "status",
+  startDate: "startDate",
+  endDate: "endDate",
+  deletedAt: "deletedAt",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt"
 };
 var SubscriptionScalarFieldEnum = {
   id: "id",
@@ -456,6 +497,23 @@ var Role = {
   ADMIN: "ADMIN",
   MANAGER: "MANAGER",
   MEMBER: "MEMBER"
+};
+var TaskStatus = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN_PROGRESS",
+  REVIEW: "REVIEW",
+  DONE: "DONE"
+};
+var TaskPriority = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  URGENT: "URGENT"
+};
+var SprintStatus = {
+  PLANNING: "PLANNING",
+  ACTIVE: "ACTIVE",
+  COMPLETED: "COMPLETED"
 };
 
 // prisma/generated/prisma/client.ts
@@ -1142,19 +1200,30 @@ var createTeam = async (organizationId, payload) => {
       name: payload.name
     }
   });
-  if (existingTeam) {
+  if (existingTeam && !existingTeam.deletedAt) {
     throw new Error(
       "A team with this name already exists in the organization."
     );
   }
-  const team = await prisma.team.create({
-    data: {
-      name: payload.name,
-      description: payload.description,
-      organizationId
-    }
-  });
-  return team;
+  if (existingTeam && existingTeam.deletedAt) {
+    const updatedTeam = await prisma.team.update({
+      where: { id: existingTeam.id },
+      data: {
+        deletedAt: null,
+        description: payload.description || existingTeam.description
+      }
+    });
+    return updatedTeam;
+  } else if (!existingTeam) {
+    const team = await prisma.team.create({
+      data: {
+        name: payload.name,
+        description: payload.description,
+        organizationId
+      }
+    });
+    return team;
+  }
 };
 var getAllTeams = async (organizationId) => {
   const teams = await prisma.team.findMany({
@@ -1175,7 +1244,13 @@ var getTeamById = async (organizationId, teamId) => {
       organizationId,
       deletedAt: null
     },
+    //complex include to fetch related projects and team members
     include: {
+      projects: {
+        include: {
+          project: true
+        }
+      },
       teamMembers: true
     }
   });
@@ -1470,6 +1545,12 @@ var assignTeamToProject = async (organizationId, projectId, teamId) => {
     where: { id: teamId, organizationId, deletedAt: null }
   });
   if (!team) throw new Error("Team not found");
+  const existingAssignment = await prisma.projectTeam.findFirst({
+    where: { projectId, teamId }
+  });
+  if (existingAssignment) {
+    throw new Error("Team is already assigned to this project");
+  }
   const assignment = await prisma.projectTeam.create({
     data: {
       projectId,
@@ -1705,6 +1786,570 @@ router3.delete(
 );
 var projectRoutes = router3;
 
+// src/app/module/task/task.route.ts
+import { Router as Router4 } from "express";
+
+// src/app/module/task/task.service.ts
+var createTask = async (organizationId, userId, projectId, payload) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  if (payload.status && !["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)) {
+    throw new Error("Invalid status value");
+  }
+  if (payload.priority && !["LOW", "MEDIUM", "HIGH"].includes(payload.priority)) {
+    throw new Error("Invalid priority value");
+  }
+  const task = await prisma.task.create({
+    data: {
+      title: payload.title,
+      description: payload.description,
+      status: payload.status || "TODO",
+      priority: payload.priority || "MEDIUM",
+      assigneeId: payload.assigneeId,
+      creatorId: userId,
+      projectId
+    }
+  });
+  return task;
+};
+var getTasksByProject = async (organizationId, projectId) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  const tasks = await prisma.task.findMany({
+    where: {
+      projectId,
+      deletedAt: null
+    }
+  });
+  return tasks;
+};
+var getTaskById = async (organizationId, taskId) => {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      project: {
+        organizationId,
+        deletedAt: null
+      },
+      deletedAt: null
+    },
+    include: {
+      project: true
+    }
+  });
+  if (!task) {
+    throw new Error("Task not found");
+  }
+  return task;
+};
+var updateTask = async (organizationId, taskId, payload, userId, role) => {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      deletedAt: null,
+      project: {
+        organizationId,
+        deletedAt: null
+      }
+    }
+  });
+  if (!task) {
+    throw new Error("Task not found");
+  }
+  if (task.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN && task.assigneeId !== userId) {
+    throw new Error("You are not authorized to update this task");
+  }
+  console.log("role", role);
+  if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
+    throw new Error("You are not authorized to assign this task");
+  }
+  const updateData = { ...payload };
+  if (payload.dueDate) {
+    updateData.dueDate = new Date(payload.dueDate);
+  }
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: updateData
+  });
+  return updatedTask;
+};
+var deleteTask = async (organizationId, taskId) => {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      project: {
+        organizationId,
+        deletedAt: null
+      },
+      deletedAt: null
+    }
+  });
+  if (!task) {
+    throw new Error("Task not found");
+  }
+  const deletedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: { deletedAt: /* @__PURE__ */ new Date() }
+  });
+  return deletedTask;
+};
+var taskService = {
+  createTask,
+  getTasksByProject,
+  getTaskById,
+  updateTask,
+  deleteTask
+};
+
+// src/app/module/task/task.controller.ts
+import { StatusCodes as StatusCodes5 } from "http-status-codes";
+var createTask2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.id;
+    const { projectId } = req.params;
+    if (!projectId) {
+      throw new Error("Project ID is missing in the request parameters.");
+    }
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!userId) {
+      throw new Error("User ID is missing in the request context.");
+    }
+    const result = await taskService.createTask(
+      organizationId,
+      userId,
+      projectId,
+      req.body
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes5.CREATED,
+      message: "Task created successfully",
+      data: result
+    });
+  }
+);
+var getTasksByProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!projectId) {
+      throw new Error("Project ID is missing in the request parameters.");
+    }
+    const result = await taskService.getTasksByProject(organizationId, projectId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes5.OK,
+      message: "Tasks retrieved successfully",
+      data: result
+    });
+  }
+);
+var getTaskById2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { taskId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!taskId) {
+      throw new Error("Task ID is missing in the request parameters.");
+    }
+    const result = await taskService.getTaskById(organizationId, taskId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes5.OK,
+      message: "Task retrieved successfully",
+      data: result
+    });
+  }
+);
+var updateTask2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { taskId } = req.params;
+    const user = req.user;
+    const userId = user?.id;
+    const role = user?.role;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!taskId) {
+      throw new Error("Task ID is missing in the request parameters.");
+    }
+    const result = await taskService.updateTask(organizationId, taskId, req.body, userId, role);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes5.OK,
+      message: "Task updated successfully",
+      data: result
+    });
+  }
+);
+var deleteTask2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { taskId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!taskId) {
+      throw new Error("Task ID is missing in the request parameters.");
+    }
+    const result = await taskService.deleteTask(organizationId, taskId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes5.OK,
+      message: "Task deleted successfully",
+      data: result
+    });
+  }
+);
+var taskController = {
+  createTask: createTask2,
+  getTasksByProject: getTasksByProject2,
+  getTaskById: getTaskById2,
+  updateTask: updateTask2,
+  deleteTask: deleteTask2
+};
+
+// src/app/module/task/task.schema.ts
+import { z as z4 } from "zod";
+var createTaskSchema = z4.object({
+  body: z4.object({
+    title: z4.string({ error: "Task title is required" }).trim().min(1, { error: "Task title cannot be empty" }),
+    description: z4.string().optional(),
+    status: z4.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
+    priority: z4.enum([TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW, TaskPriority.URGENT]).optional(),
+    dueDate: z4.coerce.date({ message: "Due date must be a valid date" }).optional(),
+    assigneeId: z4.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
+    sprintId: z4.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
+    parentTaskId: z4.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
+  })
+});
+var updateTaskSchema = z4.object({
+  body: z4.object({
+    title: z4.string().trim().min(1, { error: "Task title cannot be empty" }).optional(),
+    description: z4.string().optional(),
+    status: z4.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
+    priority: z4.enum([TaskPriority.HIGH, TaskPriority.MEDIUM, TaskPriority.LOW, TaskPriority.URGENT]).optional(),
+    dueDate: z4.coerce.date({ message: "Due date must be a valid date" }).optional(),
+    assigneeId: z4.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
+    sprintId: z4.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
+    parentTaskId: z4.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
+  })
+});
+var taskValidation = {
+  createTaskSchema,
+  updateTaskSchema
+};
+
+// src/app/module/task/task.route.ts
+var router4 = Router4();
+router4.post(
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validate(taskValidation.createTaskSchema),
+  taskController.createTask
+);
+router4.get(
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  taskController.getTasksByProject
+);
+router4.get(
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  taskController.getTaskById
+);
+router4.patch(
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validate(taskValidation.updateTaskSchema),
+  taskController.updateTask
+);
+router4.delete(
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  taskController.deleteTask
+);
+var taskRoutes = router4;
+
+// src/app/module/sprint/spring.route.ts
+import { Router as Router5 } from "express";
+
+// src/app/module/sprint/sprint.service.ts
+var createSprint = async (organizationId, projectId, payload) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  const sprint = await prisma.sprint.create({
+    data: {
+      name: payload.name,
+      goal: payload.goal,
+      status: payload.status || "PLANNING",
+      startDate: payload.startDate ? new Date(payload.startDate) : void 0,
+      endDate: payload.endDate ? new Date(payload.endDate) : void 0,
+      projectId
+    }
+  });
+  return sprint;
+};
+var getSprintsByProject = async (organizationId, projectId) => {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null }
+  });
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  const sprints = await prisma.sprint.findMany({
+    where: {
+      projectId,
+      deletedAt: null
+    },
+    include: {
+      tasks: true
+    }
+  });
+  return sprints;
+};
+var getSprintById = async (organizationId, sprintId) => {
+  const sprint = await prisma.sprint.findFirst({
+    where: {
+      id: sprintId,
+      project: {
+        organizationId,
+        deletedAt: null
+      },
+      deletedAt: null
+    },
+    include: {
+      project: true,
+      tasks: true
+    }
+  });
+  if (!sprint) {
+    throw new Error("Sprint not found");
+  }
+  return sprint;
+};
+var updateSprint = async (organizationId, sprintId, payload) => {
+  const sprint = await prisma.sprint.findFirst({
+    where: {
+      id: sprintId,
+      project: {
+        organizationId,
+        deletedAt: null
+      },
+      deletedAt: null
+    }
+  });
+  if (!sprint) {
+    throw new Error("Sprint not found");
+  }
+  const updateData = { ...payload };
+  if (payload.startDate) {
+    updateData.startDate = new Date(payload.startDate);
+  }
+  if (payload.endDate) {
+    updateData.endDate = new Date(payload.endDate);
+  }
+  const updatedSprint = await prisma.sprint.update({
+    where: { id: sprintId },
+    data: updateData
+  });
+  return updatedSprint;
+};
+var deleteSprint = async (organizationId, sprintId) => {
+  const sprint = await prisma.sprint.findFirst({
+    where: {
+      id: sprintId,
+      project: {
+        organizationId,
+        deletedAt: null
+      },
+      deletedAt: null
+    }
+  });
+  if (!sprint) {
+    throw new Error("Sprint not found");
+  }
+  const deletedSprint = await prisma.sprint.update({
+    where: { id: sprintId },
+    data: { deletedAt: /* @__PURE__ */ new Date() }
+  });
+  return deletedSprint;
+};
+var sprintService = {
+  createSprint,
+  getSprintsByProject,
+  getSprintById,
+  updateSprint,
+  deleteSprint
+};
+
+// src/app/module/sprint/sprint.controller.ts
+import { StatusCodes as StatusCodes6 } from "http-status-codes";
+var createSprint2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!projectId) {
+      throw new Error("Project ID is missing in the request parameters.");
+    }
+    const result = await sprintService.createSprint(
+      organizationId,
+      projectId,
+      req.body
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.CREATED,
+      message: "Sprint created successfully",
+      data: result
+    });
+  }
+);
+var getSprintsByProject2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { projectId } = req.params;
+    if (!projectId) {
+      throw new Error("Project ID is missing in the request parameters.");
+    }
+    const result = await sprintService.getSprintsByProject(organizationId, projectId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
+      message: "Sprints retrieved successfully",
+      data: result
+    });
+  }
+);
+var getSprintById2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { sprintId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!sprintId) {
+      throw new Error("Sprint ID is missing in the request parameters.");
+    }
+    const result = await sprintService.getSprintById(organizationId, sprintId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
+      message: "Sprint retrieved successfully",
+      data: result
+    });
+  }
+);
+var updateSprint2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { sprintId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!sprintId) {
+      throw new Error("Sprint ID is missing in the request parameters.");
+    }
+    const result = await sprintService.updateSprint(organizationId, sprintId, req.body);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
+      message: "Sprint updated successfully",
+      data: result
+    });
+  }
+);
+var deleteSprint2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const { sprintId } = req.params;
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
+    if (!sprintId) {
+      throw new Error("Sprint ID is missing in the request parameters.");
+    }
+    const result = await sprintService.deleteSprint(organizationId, sprintId);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
+      message: "Sprint deleted successfully",
+      data: result
+    });
+  }
+);
+var sprintController = {
+  createSprint: createSprint2,
+  getSprintsByProject: getSprintsByProject2,
+  getSprintById: getSprintById2,
+  updateSprint: updateSprint2,
+  deleteSprint: deleteSprint2
+};
+
+// src/app/module/sprint/sprint.schema.ts
+import { z as z5 } from "zod";
+var createSprintSchema = z5.object({
+  body: z5.object({
+    name: z5.string({ error: "Sprint name is required" }).trim().min(1, { error: "Sprint name cannot be empty" }),
+    goal: z5.string().optional(),
+    status: z5.enum([SprintStatus.ACTIVE, SprintStatus.COMPLETED, SprintStatus.PLANNING]).optional(),
+    startDate: z5.coerce.date({ message: "Start date must be a valid date" }).optional(),
+    endDate: z5.coerce.date({ message: "End date must be a valid date" }).optional()
+  })
+});
+var updateSprintSchema = z5.object({
+  body: z5.object({
+    name: z5.string().trim().min(1, { error: "Sprint name cannot be empty" }).optional(),
+    goal: z5.string().optional(),
+    status: z5.enum([SprintStatus.ACTIVE, SprintStatus.COMPLETED, SprintStatus.PLANNING]).optional(),
+    startDate: z5.coerce.date({ message: "Start date must be a valid date" }).optional(),
+    endDate: z5.coerce.date({ message: "End date must be a valid date" }).optional()
+  })
+});
+var sprintValidation = {
+  createSprintSchema,
+  updateSprintSchema
+};
+
+// src/app/module/sprint/spring.route.ts
+var router5 = Router5();
+router5.post(
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(sprintValidation.createSprintSchema),
+  sprintController.createSprint
+);
+router5.get(
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  sprintController.getSprintsByProject
+);
+router5.get(
+  "/:sprintId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  sprintController.getSprintById
+);
+router5.patch(
+  "/:sprintId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(sprintValidation.updateSprintSchema),
+  sprintController.updateSprint
+);
+router5.delete(
+  "/:sprintId",
+  authMiddleware.auth(Role.ADMIN),
+  sprintController.deleteSprint
+);
+var sprintRoutes = router5;
+
 // src/app.ts
 var app = express();
 var corsOptions = {
@@ -1718,6 +2363,8 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/projects", projectRoutes);
+app.use("/api/v1/tasks", taskRoutes);
+app.use("/api/v1/sprints", sprintRoutes);
 app.use(not_found_default);
 app.use(global_error_default);
 var app_default = app;

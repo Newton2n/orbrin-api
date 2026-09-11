@@ -55,6 +55,7 @@ export const ModelName = {
   OrganizationMembership: 'OrganizationMembership',
   Project: 'Project',
   ProjectTeam: 'ProjectTeam',
+  Sprint: 'Sprint',
   Subscription: 'Subscription',
   Task: 'Task',
   Team: 'Team',
@@ -124,6 +125,22 @@ export const ProjectTeamScalarFieldEnum = {
 } as const
 
 export type ProjectTeamScalarFieldEnum = (typeof ProjectTeamScalarFieldEnum)[keyof typeof ProjectTeamScalarFieldEnum]
+
+
+export const SprintScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  name: 'name',
+  goal: 'goal',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  deletedAt: 'deletedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SprintScalarFieldEnum = (typeof SprintScalarFieldEnum)[keyof typeof SprintScalarFieldEnum]
 
 
 export const SubscriptionScalarFieldEnum = {

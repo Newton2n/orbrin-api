@@ -9,6 +9,7 @@ import { authRoutes } from "./app/module/auth/auth.route";
 import { teamRoutes } from "./app/module/team/team.route";
 import { projectRoutes } from "./app/module/project/project.route";
 import { taskRoutes } from "./app/module/task/task.route";
+import { sprintRoutes } from "./app/module/sprint/spring.route";
 
 const app: Application = express();
 
@@ -29,6 +30,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/tasks", taskRoutes);
+app.use("/api/v1/sprints", sprintRoutes);
 
 
 
