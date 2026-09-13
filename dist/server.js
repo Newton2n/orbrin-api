@@ -571,7 +571,9 @@ var config_default = {
   stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
   admin_password: process.env.ADMIN_PASSWORD,
   frontend_url: process.env.FRONTEND_URL,
-  google_client_id: process.env.GOOGLE_CLIENT_ID
+  google_client_id: process.env.GOOGLE_CLIENT_ID,
+  upstash_redis_rest_url: process.env.UPSTASH_REDIS_REST_URL,
+  upstash_redis_rest_token: process.env.UPSTASH_REDIS_REST_TOKEN
 };
 
 // src/app/middleware/global-error.ts
@@ -700,6 +702,55 @@ var globalError = (err, req, res, _next) => {
   });
 };
 var global_error_default = globalError;
+
+// src/app/middleware/rate-limiter.ts
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+var redis = new Redis({
+  url: config_default.upstash_redis_rest_url,
+  token: config_default.upstash_redis_rest_token
+});
+var ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(2, "1 m"),
+  prefix: "orbrin:rate-limit",
+  analytics: true
+});
+var reliableRateLimiter = async (req, res, next) => {
+  try {
+    const forwardedFor = req.headers["x-forwarded-for"];
+    let ip;
+    if (Array.isArray(forwardedFor)) {
+      ip = forwardedFor[0];
+    } else if (forwardedFor) {
+      ip = forwardedFor.split(",")[0].trim();
+    } else {
+      ip = req.ip ?? "unknown-ip";
+    }
+    const identifier = `ip:${ip}`;
+    const { success, limit, remaining, reset, pending } = await ratelimit.limit(identifier);
+    await pending;
+    res.setHeader("RateLimit-Limit", limit);
+    res.setHeader("RateLimit-Remaining", remaining);
+    res.setHeader("RateLimit-Reset", reset);
+    if (!success) {
+      res.status(429).json({
+        status: 429,
+        error: "Too Many Requests",
+        message: "Rate threshold exceeded. Please slow down and try again later.",
+        limit,
+        remaining,
+        reset
+      });
+      return;
+    }
+    next();
+  } catch (error) {
+    console.error("Rate limiter error:", error);
+    next();
+  }
+};
+var rate_limiter_default = reliableRateLimiter;
 
 // src/app/module/auth/auth.route.ts
 import { Router } from "express";
@@ -2651,13 +2702,14 @@ var commentRoutes = router6;
 // src/app.ts
 var app = express();
 var corsOptions = {
-  origin: `${config_default.frontend_url}`,
+  origin: config_default.frontend_url,
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/api/v1", rate_limiter_default);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/projects", projectRoutes);
