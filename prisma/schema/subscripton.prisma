@@ -1,18 +1,36 @@
-
 model Subscription {
+  id                 String             @id @default(uuid())
+  organizationId     String             @map("organization_id")
+  planName           String             @map("plan_name")
+  status             SubscriptionStatus @default(ACTIVE)
+  gateway            PaymentGateway     @default(STRIPE)
+  subscriptionId     String             @unique @map("subscription_id")
+  currentPeriodStart DateTime           @map("current_period_start")
+  currentPeriodEnd   DateTime           @map("current_period_end")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
   id             String         @id @default(uuid())
   organizationId String         @map("organization_id")
-  gateway        PaymentGateway
+  subscriptionId String?        @map("subscription_id")
+  gateway        PaymentGateway @default(STRIPE)
   transactionId  String         @unique @map("transaction_id")
   amount         Decimal        @db.Decimal(10, 2)
   currency       String         @default("USD")
   status         PaymentStatus  @default(PENDING)
-  planName       String         @map("plan_name")
-  expiresAt      DateTime?      @map("expires_at")
+  invoiceUrl     String?        @map("invoice_url")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
-  @@map("subscriptions")
+  @@map("payments")
 }

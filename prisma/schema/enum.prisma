@@ -18,19 +18,6 @@ enum TaskPriority {
     URGENT
 }
 
-enum PaymentStatus {
-    PENDING
-    ACTIVE
-    FAILED
-    EXPIRED
-}
-
-enum PaymentGateway {
-    STRIPE
-    BKASH
-    SSLCOMMERZ
-}
-
 enum UserStatus {
     ACTIVE
     INACTIVE
@@ -52,4 +39,23 @@ enum SprintStatus {
 enum AuthProvider {
     LOCAL
     GOOGLE
+}
+
+enum SubscriptionStatus {
+    ACTIVE
+    CANCELED
+    PAST_DUE
+    TRIALING
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+}
+
+enum PaymentGateway {
+    STRIPE
+    PAYPAL
 }
