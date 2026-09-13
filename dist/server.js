@@ -712,11 +712,12 @@ var redis = new Redis({
 });
 var ratelimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(2, "1 m"),
+  // Maximum 25 requests per IP per 1 minute
+  limiter: Ratelimit.slidingWindow(25, "1 m"),
   prefix: "orbrin:rate-limit",
   analytics: true
 });
-var reliableRateLimiter = async (req, res, next) => {
+var rateLimiter = async (req, res, next) => {
   try {
     const forwardedFor = req.headers["x-forwarded-for"];
     let ip;
@@ -728,19 +729,22 @@ var reliableRateLimiter = async (req, res, next) => {
       ip = req.ip ?? "unknown-ip";
     }
     const identifier = `ip:${ip}`;
-    const { success, limit, remaining, reset, pending } = await ratelimit.limit(identifier);
+    const { success, limit, reset, pending } = await ratelimit.limit(identifier);
+    const resetInSeconds = Math.max(0, Math.ceil((reset - Date.now()) / 1e3));
     await pending;
     res.setHeader("RateLimit-Limit", limit);
-    res.setHeader("RateLimit-Remaining", remaining);
     res.setHeader("RateLimit-Reset", reset);
     if (!success) {
       res.status(429).json({
-        status: 429,
-        error: "Too Many Requests",
-        message: "Rate threshold exceeded. Please slow down and try again later.",
-        limit,
-        remaining,
-        reset
+        success: false,
+        message: "Rate limit exceeded",
+        errors: [
+          {
+            message: "Too many requests. Please try again later.",
+            limit,
+            resetInSeconds
+          }
+        ]
       });
       return;
     }
@@ -750,7 +754,7 @@ var reliableRateLimiter = async (req, res, next) => {
     next();
   }
 };
-var rate_limiter_default = reliableRateLimiter;
+var rate_limiter_default = rateLimiter;
 
 // src/app/module/auth/auth.route.ts
 import { Router } from "express";

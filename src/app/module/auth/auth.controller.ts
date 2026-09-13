@@ -62,7 +62,7 @@ const login = catchAsync(
 const getMe = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    console.log("user",req.user)
+    console.log("user", req.user);
     if (!userId) {
       throw new Error("Cannot fetch user, please log in again");
     }
@@ -104,11 +104,23 @@ const refreshToken = catchAsync(
   },
 );
 
-const google = catchAsync(
+const googleLogin = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { accessToken, refreshToken, jwtPayload } = await authService.google(
-      req.body.idToken,
-    );
+    const { accessToken, refreshToken, jwtPayload } =
+      await authService.googleLogin(req.body.idToken, req.body.organizationId);
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    });
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    });
 
     sendSuccessResponse(res, {
       statusCode: StatusCodes.OK,
@@ -128,5 +140,5 @@ export const authController = {
   login,
   getMe,
   refreshToken,
-  google,
+  googleLogin,
 };

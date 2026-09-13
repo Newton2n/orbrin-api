@@ -82,3 +82,11 @@ export const SprintStatus = {
 } as const
 
 export type SprintStatus = (typeof SprintStatus)[keyof typeof SprintStatus]
+
+
+export const AuthProvider = {
+  LOCAL: 'LOCAL',
+  GOOGLE: 'GOOGLE'
+} as const
+
+export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider]

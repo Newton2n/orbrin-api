@@ -5,7 +5,7 @@ import cors from "cors";
 import notFound from "./app/middleware/not-found";
 import globalError from "./app/middleware/global-error";
 import config from "./app/config";
-import reliableRateLimiter from "./app/middleware/rate-limiter";
+import rateLimiter from "./app/middleware/rate-limiter";
 
 import { authRoutes } from "./app/module/auth/auth.route";
 import { teamRoutes } from "./app/module/team/team.route";
@@ -28,8 +28,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Apply rate limiting to all API routes
-app.use("/api/v1", reliableRateLimiter);
+// Rate Limiter Middleware
+app.use("/api/v1", rateLimiter);
 
 // Routes
 app.use("/api/v1/auth", authRoutes);

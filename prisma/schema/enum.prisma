@@ -36,13 +36,20 @@ enum UserStatus {
     INACTIVE
     SUSPENDED
 }
+
 enum OrganizationMembershipStatus {
     ACTIVE
     INACTIVE
     SUSPENDED
 }
+
 enum SprintStatus {
-  PLANNING
-  ACTIVE
-  COMPLETED
+    PLANNING
+    ACTIVE
+    COMPLETED
+}
+
+enum AuthProvider {
+    LOCAL
+    GOOGLE
 }

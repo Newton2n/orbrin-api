@@ -7,6 +7,8 @@ import {
   TRegisterMemberBody,
   TRegisterOrgOwnerBody,
 } from "./auth.interface";
+import { OAuth2Client } from "google-auth-library/build/src/auth/oauth2client";
+import { verifyGoogleToken } from "../../lib/google";
 
 const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
   const existingUser = await prisma.user.findUnique({
@@ -123,9 +125,13 @@ const login = async (payload: TLoginBody) => {
     throw new Error("Invalid email or password");
   }
 
+  if (!user.passwordHash && user.authProvider === "GOOGLE") {
+    throw new Error("Please login using Google Sign-In");
+  }
+
   const isPasswordValid = await bcrypt.compare(
     payload.password,
-    user.passwordHash,
+    user?.passwordHash as string,
   );
   if (!isPasswordValid) {
     throw new Error("Invalid email or password");
@@ -237,10 +243,132 @@ const refreshToken = async (incomingRefreshToken: string) => {
   };
 };
 
+// Google login function
+const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
+  //  Verify the Google ID token
+  const verifyResult = await verifyGoogleToken(idToken);
+
+  const payload = verifyResult;
+
+  if (!payload || !payload.email) {
+    throw new Error("Invalid Google token");
+  }
+
+  const { sub: providerId, email, name: fullName } = payload;
+
+  //Check if user already exists
+  let user = await prisma.user.findUnique({
+    where: { email, deletedAt: null, status: "ACTIVE" },
+    include: {
+      memberships: {
+        select: {
+          role: true,
+          organizationId: true,
+        },
+      },
+    },
+  });
+
+  if (user?.memberships[0].role === "ADMIN") {
+    throw new Error(
+      "Organization owner cannot login via Google. Please use your email and password to login.",
+    );
+  }
+
+  if (user) {
+    // If user exists but doesn't have a Google authProviderId, update it
+    if (!user.authProviderId) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          authProviderId: providerId,
+          authProvider: "GOOGLE",
+          emailVerified: true,
+        },
+        include: {
+          memberships: {
+            select: {
+              role: true,
+              organizationId: true,
+            },
+          },
+        },
+      });
+    }
+  } else {
+    // If user doesn't exist, register them as a MEMBER automatically
+    if (!defaultOrganizationId) {
+      throw new Error("Organization ID is required for new Google signup.");
+    }
+
+    const organization = await prisma.organization.findUnique({
+      where: { id: defaultOrganizationId, deletedAt: null },
+    });
+
+    if (!organization) {
+      throw new Error("Organization not found");
+    }
+
+    user = await prisma.user.create({
+      data: {
+        fullName: fullName || "Google User",
+        email,
+        passwordHash: null, // No password for Google users
+        authProvider: "GOOGLE",
+        authProviderId: providerId,
+        emailVerified: true,
+        memberships: {
+          create: { organizationId: defaultOrganizationId, role: "MEMBER" },
+        },
+      },
+      include: {
+        memberships: {
+          select: {
+            role: true,
+            organizationId: true,
+          },
+        },
+      },
+    });
+  }
+
+  if (!user) {
+    throw new Error("User creation or retrieval failed.");
+  }
+
+  //  Generate app JWT tokens
+  const jwtPayload = {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.memberships[0].role,
+    organizationId: user.memberships[0].organizationId,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret!,
+    config.jwt_access_expires_in!,
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_refresh_secret!,
+    config.jwt_refresh_expires_in!,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    jwtPayload,
+  };
+};
+
 export const authService = {
   registerOrgOwner,
   registerMember,
   login,
   getMe,
   refreshToken,
+  googleLogin,
 };

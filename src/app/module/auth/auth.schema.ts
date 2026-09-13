@@ -50,8 +50,17 @@ const loginSchema = z.object({
   }),
 });
 
+const googleLoginSchema = z.object({
+  body: z.object({
+    idToken: z.string({ error: "Google ID token is required" }).min(1, { error: "ID token cannot be empty" }),
+    organizationId: z.uuid({ error: "Organization ID must be a valid UUID" }).optional(),
+  }),
+});
+
+
 export const authValidation = {
   registerOrgOwnerSchema,
   registerMemberSchema,
   loginSchema,
+  googleLoginSchema,
 };

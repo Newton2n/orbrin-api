@@ -1,18 +1,21 @@
 model User {
-  id           String                   @id @default(uuid())
-  email        String                   @unique
-  passwordHash String                   @map("password_hash")
-  fullName     String                   @map("full_name")
-  status       UserStatus               @default(ACTIVE)
-  deletedAt    DateTime?                @map("deleted_at")
-  createdAt    DateTime                 @default(now()) @map("created_at")
-  updatedAt    DateTime                 @updatedAt @map("updated_at")
+  id             String       @id @default(uuid())
+  email          String       @unique
+  emailVerified  Boolean      @default(false) @map("email_verified")
+  passwordHash   String?      @map("password_hash")
+  fullName       String       @map("full_name")
+  status         UserStatus   @default(ACTIVE)
+  authProvider   AuthProvider @default(LOCAL) @map("auth_provider")
+  authProviderId String?      @map("auth_provider_id")
+  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  memberships       OrganizationMembership[]
-  teamMemberships   TeamMembership[]
-  createdTasks      Task[]                  @relation("TaskCreator")
-  assignedTasks     Task[]                  @relation("TaskAssignee")
-  comments Comment[]
+  memberships     OrganizationMembership[]
+  teamMemberships TeamMembership[]
+  createdTasks    Task[]                   @relation("TaskCreator")
+  assignedTasks   Task[]                   @relation("TaskAssignee")
+  comments        Comment[]
 
   @@map("users")
 }

@@ -7,3 +7,6 @@ export type TRegisterMemberBody = z.infer<
   typeof authValidation.registerMemberSchema
 >["body"];
 export type TLoginBody = z.infer<typeof authValidation.loginSchema>["body"];
+export type TGoogleLoginBody = z.infer<
+  typeof authValidation.googleLoginSchema
+>["body"];

@@ -219,9 +219,12 @@ export type TeamMembershipScalarFieldEnum = (typeof TeamMembershipScalarFieldEnu
 export const UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
+  emailVerified: 'emailVerified',
   passwordHash: 'passwordHash',
   fullName: 'fullName',
   status: 'status',
+  authProvider: 'authProvider',
+  authProviderId: 'authProviderId',
   deletedAt: 'deletedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
