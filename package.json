@@ -24,6 +24,8 @@
     "@prisma/client": "^7.10.0",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.4",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -32,6 +34,8 @@
     "http-status-codes": "^2.3.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0",
+    "rate-limit-redis": "^6.0.1",
+    "redis": "^6.2.1",
     "tsx": "^4.23.13",
     "zod": "^4.5.4"
   },

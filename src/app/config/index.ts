@@ -17,5 +17,7 @@ export default {
   stripe_webhook_secret :process.env.STRIPE_WEBHOOK_SECRET!,
   admin_password :process.env.ADMIN_PASSWORD!,
   frontend_url : process.env.FRONTEND_URL!,
-  google_client_id :process.env.GOOGLE_CLIENT_ID
+  google_client_id :process.env.GOOGLE_CLIENT_ID,
+  upstash_redis_rest_url : process.env.UPSTASH_REDIS_REST_URL,
+  upstash_redis_rest_token : process.env.UPSTASH_REDIS_REST_TOKEN,
 };
