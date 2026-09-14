@@ -1,78 +1,78 @@
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 import config from "../config";
 
 const redis = new Redis({
-  url: config.upstash_redis_rest_url as string,
-  token: config.upstash_redis_rest_token as string,
+	url: config.upstash_redis_rest_url as string,
+	token: config.upstash_redis_rest_token as string,
 });
 
 const ratelimit = new Ratelimit({
-  redis,
+	redis,
 
-  // Maximum 25 requests per IP per 1 minute
-  limiter: Ratelimit.slidingWindow(25, "1 m"),
+	// Maximum 25 requests per IP per 1 minute
+	limiter: Ratelimit.slidingWindow(25, "1 m"),
 
-  prefix: "orbrin:rate-limit",
+	prefix: "orbrin:rate-limit",
 
-  analytics: true,
+	analytics: true,
 });
 
 const rateLimiter = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
+	req: Request,
+	res: Response,
+	next: NextFunction,
 ): Promise<void> => {
-  try {
-    const forwardedFor = req.headers["x-forwarded-for"];
+	try {
+		const forwardedFor = req.headers["x-forwarded-for"];
 
-    let ip: string;
+		let ip: string;
 
-    if (Array.isArray(forwardedFor)) {
-      ip = forwardedFor[0];
-    } else if (forwardedFor) {
-      ip = forwardedFor.split(",")[0].trim();
-    } else {
-      ip = req.ip ?? "unknown-ip";
-    }
+		if (Array.isArray(forwardedFor)) {
+			ip = forwardedFor[0];
+		} else if (forwardedFor) {
+			ip = forwardedFor.split(",")[0].trim();
+		} else {
+			ip = req.ip ?? "unknown-ip";
+		}
 
-    const identifier = `ip:${ip}`;
+		const identifier = `ip:${ip}`;
 
-    const { success, limit, reset, pending } =
-      await ratelimit.limit(identifier);
+		const { success, limit, reset, pending } =
+			await ratelimit.limit(identifier);
 
-    const resetInSeconds = Math.max(0, Math.ceil((reset - Date.now()) / 1000));
+		const resetInSeconds = Math.max(0, Math.ceil((reset - Date.now()) / 1000));
 
-    await pending;
+		await pending;
 
-    res.setHeader("RateLimit-Limit", limit);
-    res.setHeader("RateLimit-Reset", reset);
+		res.setHeader("RateLimit-Limit", limit);
+		res.setHeader("RateLimit-Reset", reset);
 
-    if (!success) {
-      res.status(429).json({
-        success: false,
-        message: "Rate limit exceeded",
-        errors: [
-          {
-            message: "Too many requests. Please try again later.",
-            limit,
-            resetInSeconds,
-          },
-        ],
-      });
+		if (!success) {
+			res.status(429).json({
+				success: false,
+				message: "Rate limit exceeded",
+				errors: [
+					{
+						message: "Too many requests. Please try again later.",
+						limit,
+						resetInSeconds,
+					},
+				],
+			});
 
-      return;
-    }
+			return;
+		}
 
-    next();
-  } catch (error) {
-    console.error("Rate limiter error:", error);
+		next();
+	} catch (error) {
+		console.error("Rate limiter error:", error);
 
-    // In case of an error, allow the request to proceed
-    next();
-  }
+		// In case of an error, allow the request to proceed
+		next();
+	}
 };
 
 export default rateLimiter;

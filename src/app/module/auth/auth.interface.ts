@@ -1,12 +1,12 @@
-import z from "zod";
-import { authValidation } from "./auth.schema";
+import type z from "zod";
+import type { authValidation } from "./auth.schema";
 export type TRegisterOrgOwnerBody = z.infer<
-  typeof authValidation.registerOrgOwnerSchema
+	typeof authValidation.registerOrgOwnerSchema
 >["body"];
 export type TRegisterMemberBody = z.infer<
-  typeof authValidation.registerMemberSchema
+	typeof authValidation.registerMemberSchema
 >["body"];
 export type TLoginBody = z.infer<typeof authValidation.loginSchema>["body"];
 export type TGoogleLoginBody = z.infer<
-  typeof authValidation.googleLoginSchema
+	typeof authValidation.googleLoginSchema
 >["body"];

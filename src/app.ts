@@ -1,5 +1,5 @@
 import cookieParser from "cookie-parser";
-import express, { Application } from "express";
+import express, { type Application } from "express";
 import cors from "cors";
 
 import notFound from "./app/middleware/not-found";
@@ -17,16 +17,16 @@ import { subscriptionRoutes } from "./app/module/subscription/subscripton.route"
 const app: Application = express();
 
 const corsOptions = {
-  origin: config.frontend_url,
-  optionsSuccessStatus: 200,
+	origin: config.frontend_url,
+	optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 
 // Stripe webhook MUST come before express.json()
 app.use(
-  "/api/v1/subscriptions/webhook",
-  express.raw({ type: "application/json" }),
+	"/api/v1/subscriptions/webhook",
+	express.raw({ type: "application/json" }),
 );
 
 app.use(express.json());

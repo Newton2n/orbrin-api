@@ -1,7 +1,7 @@
 export interface ICreateCommentPayload {
-  content: string;
+	content: string;
 }
 
 export interface IUpdateCommentPayload {
-  content: string;
+	content: string;
 }
