@@ -1,8 +1,10 @@
 import { Router } from "express";
+
 import { commentController } from "./comment.controller";
 import { validate } from "../../middleware/validate";
 import { commentValidation } from "./comment.schema";
 import { authMiddleware } from "../../middleware/auth";
+import { subscriptionCheck } from "../../middleware/subscription-check";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 
 const router = Router();
@@ -11,6 +13,7 @@ const router = Router();
 router.post(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  subscriptionCheck,
   validate(commentValidation.createCommentSchema),
   commentController.createComment,
 );
@@ -26,6 +29,7 @@ router.get(
 router.patch(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  subscriptionCheck,
   validate(commentValidation.updateCommentSchema),
   commentController.updateComment,
 );
@@ -34,6 +38,7 @@ router.patch(
 router.delete(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  subscriptionCheck,
   commentController.deleteComment,
 );
 

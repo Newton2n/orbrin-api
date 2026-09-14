@@ -4,6 +4,7 @@ import { validate } from "../../middleware/validate";
 import { teamValidation } from "./team.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
+import { subscriptionCheck } from "../../middleware/subscription-check";
 
 const router = Router();
 
@@ -11,6 +12,7 @@ const router = Router();
 router.post(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   validate(teamValidation.createTeamSchema),
   teamController.createTeam,
 );
@@ -33,6 +35,7 @@ router.get(
 router.patch(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   validate(teamValidation.updateTeamSchema),
   teamController.updateTeam,
 );
@@ -41,6 +44,7 @@ router.patch(
 router.delete(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   teamController.deleteTeam,
 );
 

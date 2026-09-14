@@ -4,6 +4,7 @@ import { validate } from "../../middleware/validate";
 import { sprintValidation } from "./sprint.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
+import { subscriptionCheck } from "../../middleware/subscription-check";
 
 const router = Router();
 
@@ -11,6 +12,7 @@ const router = Router();
 router.post(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   validate(sprintValidation.createSprintSchema),
   sprintController.createSprint,
 );
@@ -33,6 +35,7 @@ router.get(
 router.patch(
   "/:sprintId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   validate(sprintValidation.updateSprintSchema),
   sprintController.updateSprint,
 );
@@ -40,7 +43,8 @@ router.patch(
 // Delete a sprint by its ID
 router.delete(
   "/:sprintId",
-  authMiddleware.auth(Role.ADMIN),
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
   sprintController.deleteSprint,
 );
 
