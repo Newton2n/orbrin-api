@@ -13,9 +13,8 @@ import { projectRoutes } from "./app/module/project/project.route";
 import { taskRoutes } from "./app/module/task/task.route";
 import { sprintRoutes } from "./app/module/sprint/spring.route";
 import { commentRoutes } from "./app/module/comment/comment.route";
-
+import { subscriptionRoutes } from "./app/module/subscription/subscripton.route";
 const app: Application = express();
-
 
 const corsOptions = {
   origin: config.frontend_url,
@@ -23,6 +22,12 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Stripe webhook MUST come before express.json()
+app.use(
+  "/api/v1/subscriptions/webhook",
+  express.raw({ type: "application/json" }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -38,6 +43,7 @@ app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/sprints", sprintRoutes);
 app.use("/api/v1/comments", commentRoutes);
+app.use("/api/v1/subscriptions", subscriptionRoutes);
 
 // Error handling
 app.use(notFound);

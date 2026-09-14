@@ -42,6 +42,7 @@ enum AuthProvider {
 }
 
 enum SubscriptionStatus {
+    PENDING
     ACTIVE
     CANCELED
     PAST_DUE
@@ -57,5 +58,6 @@ enum PaymentStatus {
 
 enum PaymentGateway {
     STRIPE
-    PAYPAL
+    SSLCOMMERZ
+    BKASH
 }

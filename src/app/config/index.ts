@@ -20,4 +20,5 @@ export default {
   google_client_id :process.env.GOOGLE_CLIENT_ID,
   upstash_redis_rest_url : process.env.UPSTASH_REDIS_REST_URL,
   upstash_redis_rest_token : process.env.UPSTASH_REDIS_REST_TOKEN,
+  orbrin_base_one_month_plan_id : process.env.ORBRIN_BASE_ONE_MONTH_PLAN_ID,
 };

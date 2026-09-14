@@ -1,12 +1,12 @@
 model Subscription {
   id                 String             @id @default(uuid())
-  organizationId     String             @map("organization_id")
+  organizationId     String             @unique @map("organization_id")
   planName           String             @map("plan_name")
-  status             SubscriptionStatus @default(ACTIVE)
+  status             SubscriptionStatus @default(PENDING)
   gateway            PaymentGateway     @default(STRIPE)
-  subscriptionId     String             @unique @map("subscription_id")
-  currentPeriodStart DateTime           @map("current_period_start")
-  currentPeriodEnd   DateTime           @map("current_period_end")
+  subscriptionId     String?            @unique @map("subscription_id")
+  currentPeriodStart DateTime?          @map("current_period_start")
+  currentPeriodEnd   DateTime?          @map("current_period_end")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 

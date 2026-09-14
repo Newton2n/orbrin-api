@@ -11,7 +11,7 @@ model Organization {
   memberships   OrganizationMembership[]
   teams         Team[]
   projects      Project[]
-  subscriptions Subscription[]
+  subscriptions Subscription?
   payments      Payment[]
 
   @@map("organizations")

@@ -109,6 +109,32 @@
           }
         },
         {
+          "name": "Google Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"YOUR_GOOGLE_ID_TOKEN_HERE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "google"]
+            }
+          }
+        },
+        {
           "name": "Get current user",
           "request": {
             "method": "GET",
@@ -140,6 +166,60 @@
               "raw": "{{baseUrl}}{{apiPrefix}}/auth/refresh-token",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "auth", "refresh-token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "subscriptions",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/subscriptions/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "subscriptions", "checkout"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/subscriptions/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "subscriptions", "history"]
             }
           }
         }

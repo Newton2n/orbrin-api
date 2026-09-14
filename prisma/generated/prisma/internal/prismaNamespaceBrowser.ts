@@ -58,6 +58,7 @@ export const ModelName = {
   ProjectTeam: 'ProjectTeam',
   Sprint: 'Sprint',
   Subscription: 'Subscription',
+  Payment: 'Payment',
   Task: 'Task',
   Team: 'Team',
   TeamMembership: 'TeamMembership',
@@ -99,7 +100,8 @@ export const OrganizationScalarFieldEnum = {
   slug: 'slug',
   deletedAt: 'deletedAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  stripeCustomerId: 'stripeCustomerId'
 } as const
 
 export type OrganizationScalarFieldEnum = (typeof OrganizationScalarFieldEnum)[keyof typeof OrganizationScalarFieldEnum]
@@ -160,18 +162,34 @@ export type SprintScalarFieldEnum = (typeof SprintScalarFieldEnum)[keyof typeof 
 export const SubscriptionScalarFieldEnum = {
   id: 'id',
   organizationId: 'organizationId',
-  gateway: 'gateway',
-  transactionId: 'transactionId',
-  amount: 'amount',
-  currency: 'currency',
-  status: 'status',
   planName: 'planName',
-  expiresAt: 'expiresAt',
+  status: 'status',
+  gateway: 'gateway',
+  subscriptionId: 'subscriptionId',
+  currentPeriodStart: 'currentPeriodStart',
+  currentPeriodEnd: 'currentPeriodEnd',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
+
+
+export const PaymentScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  subscriptionId: 'subscriptionId',
+  gateway: 'gateway',
+  transactionId: 'transactionId',
+  amount: 'amount',
+  currency: 'currency',
+  status: 'status',
+  invoiceUrl: 'invoiceUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PaymentScalarFieldEnum = (typeof PaymentScalarFieldEnum)[keyof typeof PaymentScalarFieldEnum]
 
 
 export const TaskScalarFieldEnum = {
