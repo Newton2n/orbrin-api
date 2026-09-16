@@ -21,4 +21,7 @@ export default {
 	upstash_redis_rest_url: process.env.UPSTASH_REDIS_REST_URL,
 	upstash_redis_rest_token: process.env.UPSTASH_REDIS_REST_TOKEN,
 	orbrin_base_one_month_plan_id: process.env.ORBRIN_BASE_ONE_MONTH_PLAN_ID,
+	demo_email: process.env.DEMO_EMAIL,
+	demo_slug: process.env.DEMO_SLUG,
+	demo_password: process.env.DEMO_PASSWORD,
 };
