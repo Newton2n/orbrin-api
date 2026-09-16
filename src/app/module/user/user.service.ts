@@ -14,7 +14,7 @@ import type {
 	TUpdateUserStatus,
 } from "./user.interface";
 
-const RESET_TOKEN_EXPIRY = 60 * 15;
+const RESET_OTP_EXPIRY = 60 * 5; // 5 minutes
 
 const getMyProfile = async (userId: string) => {
 	const user = await prisma.user.findUnique({
@@ -162,64 +162,62 @@ const forgotPassword = async (payload: TForgotPassword) => {
 		return;
 	}
 
-	// Generate a secure random token.
-	const rawToken = crypto
-		.randomBytes(32)
-		.toString("hex");
+	// Generate a 6-digit OTP.
+	const otp = crypto
+		.randomInt(100000, 1000000)
+		.toString();
 
-	// Store only the hashed token in Redis.
-	const hashedToken = crypto
+	// Hash OTP before storing it in Redis.
+	const hashedOtp = crypto
 		.createHash("sha256")
-		.update(rawToken)
+		.update(otp)
 		.digest("hex");
 
-	const redisKey = `orbrin:password-reset:${hashedToken}`;
+	const redisKey = `orbrin:password-reset-otp:${user.id}`;
 
-	await redis.set(redisKey, user.id, {
-		ex: RESET_TOKEN_EXPIRY,
+	await redis.set(redisKey, hashedOtp, {
+		ex: RESET_OTP_EXPIRY,
 	});
 
-	const resetUrl = `${config.frontend_url}/reset-password?token=${rawToken}`;
-
-	await mailService.sendPasswordResetEmail({
+	// Send OTP directly to email.
+	await mailService.sendPasswordResetOtpEmail({
 		to: user.email,
 		fullName: user.fullName,
-		resetUrl,
+		otp,
 	});
 };
 
 const resetPassword = async (payload: TResetPassword) => {
-	const hashedToken = crypto
-		.createHash("sha256")
-		.update(payload.token)
-		.digest("hex");
-
-	const redisKey = `orbrin:password-reset:${hashedToken}`;
-
-	const userId = await redis.get<string>(redisKey);
-
-	if (!userId) {
-		throw new Error("Reset token is invalid or expired.");
-	}
+	const email = payload.email.trim().toLowerCase();
 
 	const user = await prisma.user.findUnique({
 		where: {
-			id: userId,
+			email,
 			deletedAt: null,
 		},
 	});
 
 	if (!user) {
-		await redis.del(redisKey);
-		throw new Error("User not found.");
+		throw new Error("Invalid email or OTP.");
 	}
 
 	if (user.authProvider !== "LOCAL") {
-		await redis.del(redisKey);
-
 		throw new Error(
 			"Password reset is only available for local accounts.",
 		);
+	}
+
+	const hashedOtp = crypto
+		.createHash("sha256")
+		.update(payload.otp)
+		.digest("hex");
+
+	const redisKey = `orbrin:password-reset-otp:${user.id}`;
+
+	const storedOtp = await redis.get<string>(redisKey);
+
+	if (!storedOtp || storedOtp !== hashedOtp) {
+		throw new Error("Invalid or expired OTP.");
 	}
 
 	const hashedPassword = await bcrypt.hash(
@@ -229,14 +227,14 @@ const resetPassword = async (payload: TResetPassword) => {
 
 	await prisma.user.update({
 		where: {
-			id: userId,
+			id: user.id,
 		},
 		data: {
 			passwordHash: hashedPassword,
 		},
 	});
 
-	// Make the reset token single-use.
+	// Make OTP single-use.
 	await redis.del(redisKey);
 };
 

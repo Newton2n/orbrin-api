@@ -14,6 +14,8 @@ import { taskRoutes } from "./app/module/task/task.route";
 import { sprintRoutes } from "./app/module/sprint/spring.route";
 import { commentRoutes } from "./app/module/comment/comment.route";
 import { subscriptionRoutes } from "./app/module/subscription/subscripton.route";
+import { userRoutes } from "./app/module/user/user.route";
+import { organizationRoutes } from "./app/module/organization/organization.route";
 const app: Application = express();
 
 const corsOptions = {
@@ -38,6 +40,8 @@ app.use("/api/v1", rateLimiter);
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/organizations", organizationRoutes);
 app.use("/api/v1/teams", teamRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/tasks", taskRoutes);

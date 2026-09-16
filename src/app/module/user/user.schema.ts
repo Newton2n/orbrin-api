@@ -44,16 +44,11 @@ export const forgotPasswordValidationSchema = z.object({
 });
 
 export const resetPasswordValidationSchema = z.object({
-  body: z.object({
-    token: z
-      .string()
-      .min(1, "Reset token is required"),
-
-    newPassword: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(100, "Password cannot exceed 100 characters"),
-  }),
+	body: z.object({
+		email: z.email(),
+		otp: z.string().regex(/^\d{6}$/, "OTP must be 6 digits."),
+		newPassword: z.string().min(8),
+	}),
 });
 
 export const updateUserStatusValidationSchema = z.object({

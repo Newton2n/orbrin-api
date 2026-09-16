@@ -605,7 +605,13 @@
             "url": {
               "raw": "{{baseUrl}}{{apiPrefix}}/projects/:projectId/teams/:teamId",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "projects", ":projectId", "teams", ":teamId"],
+              "path": [
+                "{{apiPrefix}}",
+                "projects",
+                ":projectId",
+                "teams",
+                ":teamId"
+              ],
               "variable": [
                 {
                   "key": "projectId",
@@ -1107,6 +1113,473 @@
                   "value": "YOUR_COMMENT_ID_HERE"
                 }
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Newton Bepari Updated\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Change My Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/me/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me", "password"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password - Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password - Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"otp\": \"583214\",\n  \"newPassword\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "reset-password"]
+            }
+          }
+        },
+        {
+          "name": "Update User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/:userId/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", ":userId", "status"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete My Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiPrefix}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "organizations",
+      "item": [
+        {
+          "name": "Create organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Orbrin Technologies\",\n  \"slug\": \"orbrin-technologies\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations"]
+            }
+          }
+        },
+        {
+          "name": "Get my organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update organization",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Orbrin Technologies Updated\",\n  \"slug\": \"orbrin-technologies\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "me"]
+            }
+          }
+        },
+        {
+          "name": "Delete organization",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "me"]
+            }
+          }
+        },
+        {
+          "name": "Get organization members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "members"]
+            }
+          }
+        },
+        {
+          "name": "Get organization member by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "organizations",
+                "members",
+                ":memberId"
+              ],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "YOUR_MEMBER_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update member role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MANAGER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members/:memberId/role",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "organizations",
+                "members",
+                ":memberId",
+                "role"
+              ],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "YOUR_MEMBER_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update member status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members/:memberId/status",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "organizations",
+                "members",
+                ":memberId",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "YOUR_MEMBER_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "organizations",
+                "members",
+                ":memberId"
+              ],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "YOUR_MEMBER_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Leave organization",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/leave",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "leave"]
             }
           }
         }

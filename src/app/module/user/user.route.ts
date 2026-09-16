@@ -61,4 +61,4 @@ router.patch(
   userController.updateUserStatus,
 );
 
-export const userRouter = router;
+export const userRoutes = router;

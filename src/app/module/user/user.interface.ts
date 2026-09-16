@@ -10,14 +10,14 @@ export interface TChangePassword {
 }
 
 export interface TForgotPassword {
-  email: string;
+	email: string;
 }
 
 export interface TResetPassword {
-  token: string;
-  newPassword: string;
+	email: string;
+	otp: string;
+	newPassword: string;
 }
-
 export interface TUpdateUserStatus {
   status: UserStatus;
 }

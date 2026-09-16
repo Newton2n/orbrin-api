@@ -19,6 +19,7 @@ const renderTemplate = async (
 	const templatePath = path.join(
 		process.cwd(),
 		"src",
+        "app",
 		"services",
 		"mail",
 		"templates",
@@ -65,8 +66,29 @@ const sendPasswordResetEmail = async ({
 		html,
 	});
 };
+const sendPasswordResetOtpEmail = async ({
+	to,
+	fullName,
+	otp,
+}: {
+	to: string;
+	fullName: string;
+	otp: string;
+}) => {
+	const html = await renderTemplate("reset-password.ejs", {
+		fullName,
+		otp,
+	});
+
+	await sendEmail({
+		to,
+		subject: "Your Orbrin password reset code",
+		html,
+	});
+};
 
 export const mailService = {
 	sendEmail,
 	sendPasswordResetEmail,
+	sendPasswordResetOtpEmail,
 };
