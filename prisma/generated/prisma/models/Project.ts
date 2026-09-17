@@ -29,6 +29,8 @@ export type ProjectMinAggregateOutputType = {
   organizationId: string | null
   name: string | null
   description: string | null
+  documentUrl: string | null
+  documentPublicId: string | null
   status: string | null
   deletedAt: Date | null
   createdAt: Date | null
@@ -40,6 +42,8 @@ export type ProjectMaxAggregateOutputType = {
   organizationId: string | null
   name: string | null
   description: string | null
+  documentUrl: string | null
+  documentPublicId: string | null
   status: string | null
   deletedAt: Date | null
   createdAt: Date | null
@@ -51,6 +55,8 @@ export type ProjectCountAggregateOutputType = {
   organizationId: number
   name: number
   description: number
+  documentUrl: number
+  documentPublicId: number
   status: number
   deletedAt: number
   createdAt: number
@@ -64,6 +70,8 @@ export type ProjectMinAggregateInputType = {
   organizationId?: true
   name?: true
   description?: true
+  documentUrl?: true
+  documentPublicId?: true
   status?: true
   deletedAt?: true
   createdAt?: true
@@ -75,6 +83,8 @@ export type ProjectMaxAggregateInputType = {
   organizationId?: true
   name?: true
   description?: true
+  documentUrl?: true
+  documentPublicId?: true
   status?: true
   deletedAt?: true
   createdAt?: true
@@ -86,6 +96,8 @@ export type ProjectCountAggregateInputType = {
   organizationId?: true
   name?: true
   description?: true
+  documentUrl?: true
+  documentPublicId?: true
   status?: true
   deletedAt?: true
   createdAt?: true
@@ -170,6 +182,8 @@ export type ProjectGroupByOutputType = {
   organizationId: string
   name: string
   description: string | null
+  documentUrl: string | null
+  documentPublicId: string | null
   status: string
   deletedAt: Date | null
   createdAt: Date
@@ -202,6 +216,8 @@ export type ProjectWhereInput = {
   organizationId?: Prisma.StringFilter<"Project"> | string
   name?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentUrl?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentPublicId?: Prisma.StringNullableFilter<"Project"> | string | null
   status?: Prisma.StringFilter<"Project"> | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Project"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
@@ -217,6 +233,8 @@ export type ProjectOrderByWithRelationInput = {
   organizationId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  documentUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  documentPublicId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -235,6 +253,8 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   organizationId?: Prisma.StringFilter<"Project"> | string
   name?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentUrl?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentPublicId?: Prisma.StringNullableFilter<"Project"> | string | null
   status?: Prisma.StringFilter<"Project"> | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Project"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
@@ -250,6 +270,8 @@ export type ProjectOrderByWithAggregationInput = {
   organizationId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
+  documentUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  documentPublicId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -267,6 +289,8 @@ export type ProjectScalarWhereWithAggregatesInput = {
   organizationId?: Prisma.StringWithAggregatesFilter<"Project"> | string
   name?: Prisma.StringWithAggregatesFilter<"Project"> | string
   description?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
+  documentUrl?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
+  documentPublicId?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   status?: Prisma.StringWithAggregatesFilter<"Project"> | string
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Project"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
@@ -277,6 +301,8 @@ export type ProjectCreateInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -292,6 +318,8 @@ export type ProjectUncheckedCreateInput = {
   organizationId: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -305,6 +333,8 @@ export type ProjectUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -320,6 +350,8 @@ export type ProjectUncheckedUpdateInput = {
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -334,6 +366,8 @@ export type ProjectCreateManyInput = {
   organizationId: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -344,6 +378,8 @@ export type ProjectUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -355,6 +391,8 @@ export type ProjectUncheckedUpdateManyInput = {
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -376,6 +414,8 @@ export type ProjectCountOrderByAggregateInput = {
   organizationId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  documentUrl?: Prisma.SortOrder
+  documentPublicId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -387,6 +427,8 @@ export type ProjectMaxOrderByAggregateInput = {
   organizationId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  documentUrl?: Prisma.SortOrder
+  documentPublicId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -398,6 +440,8 @@ export type ProjectMinOrderByAggregateInput = {
   organizationId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
+  documentUrl?: Prisma.SortOrder
+  documentPublicId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -497,6 +541,8 @@ export type ProjectCreateWithoutOrganizationInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -510,6 +556,8 @@ export type ProjectUncheckedCreateWithoutOrganizationInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -553,6 +601,8 @@ export type ProjectScalarWhereInput = {
   organizationId?: Prisma.StringFilter<"Project"> | string
   name?: Prisma.StringFilter<"Project"> | string
   description?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentUrl?: Prisma.StringNullableFilter<"Project"> | string | null
+  documentPublicId?: Prisma.StringNullableFilter<"Project"> | string | null
   status?: Prisma.StringFilter<"Project"> | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Project"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
@@ -563,6 +613,8 @@ export type ProjectCreateWithoutTeamsInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -577,6 +629,8 @@ export type ProjectUncheckedCreateWithoutTeamsInput = {
   organizationId: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -605,6 +659,8 @@ export type ProjectUpdateWithoutTeamsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -619,6 +675,8 @@ export type ProjectUncheckedUpdateWithoutTeamsInput = {
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -631,6 +689,8 @@ export type ProjectCreateWithoutSprintsInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -645,6 +705,8 @@ export type ProjectUncheckedCreateWithoutSprintsInput = {
   organizationId: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -673,6 +735,8 @@ export type ProjectUpdateWithoutSprintsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -687,6 +751,8 @@ export type ProjectUncheckedUpdateWithoutSprintsInput = {
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -699,6 +765,8 @@ export type ProjectCreateWithoutTasksInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -713,6 +781,8 @@ export type ProjectUncheckedCreateWithoutTasksInput = {
   organizationId: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -741,6 +811,8 @@ export type ProjectUpdateWithoutTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -755,6 +827,8 @@ export type ProjectUncheckedUpdateWithoutTasksInput = {
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -767,6 +841,8 @@ export type ProjectCreateManyOrganizationInput = {
   id?: string
   name: string
   description?: string | null
+  documentUrl?: string | null
+  documentPublicId?: string | null
   status?: string
   deletedAt?: Date | string | null
   createdAt?: Date | string
@@ -777,6 +853,8 @@ export type ProjectUpdateWithoutOrganizationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -790,6 +868,8 @@ export type ProjectUncheckedUpdateWithoutOrganizationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -803,6 +883,8 @@ export type ProjectUncheckedUpdateManyWithoutOrganizationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  documentPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -863,6 +945,8 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   organizationId?: boolean
   name?: boolean
   description?: boolean
+  documentUrl?: boolean
+  documentPublicId?: boolean
   status?: boolean
   deletedAt?: boolean
   createdAt?: boolean
@@ -879,6 +963,8 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   organizationId?: boolean
   name?: boolean
   description?: boolean
+  documentUrl?: boolean
+  documentPublicId?: boolean
   status?: boolean
   deletedAt?: boolean
   createdAt?: boolean
@@ -891,6 +977,8 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   organizationId?: boolean
   name?: boolean
   description?: boolean
+  documentUrl?: boolean
+  documentPublicId?: boolean
   status?: boolean
   deletedAt?: boolean
   createdAt?: boolean
@@ -903,13 +991,15 @@ export type ProjectSelectScalar = {
   organizationId?: boolean
   name?: boolean
   description?: boolean
+  documentUrl?: boolean
+  documentPublicId?: boolean
   status?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "name" | "description" | "status" | "deletedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "organizationId" | "name" | "description" | "documentUrl" | "documentPublicId" | "status" | "deletedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   sprints?: boolean | Prisma.Project$sprintsArgs<ExtArgs>
@@ -937,6 +1027,8 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     organizationId: string
     name: string
     description: string | null
+    documentUrl: string | null
+    documentPublicId: string | null
     status: string
     deletedAt: Date | null
     createdAt: Date
@@ -1372,6 +1464,8 @@ export interface ProjectFieldRefs {
   readonly organizationId: Prisma.FieldRef<"Project", 'String'>
   readonly name: Prisma.FieldRef<"Project", 'String'>
   readonly description: Prisma.FieldRef<"Project", 'String'>
+  readonly documentUrl: Prisma.FieldRef<"Project", 'String'>
+  readonly documentPublicId: Prisma.FieldRef<"Project", 'String'>
   readonly status: Prisma.FieldRef<"Project", 'String'>
   readonly deletedAt: Prisma.FieldRef<"Project", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Project", 'DateTime'>

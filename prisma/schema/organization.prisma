@@ -1,10 +1,12 @@
 model Organization {
-  id        String    @id @default(uuid())
-  name      String
-  slug      String    @unique
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  logoUrl      String?   @map("logo_url")
+  logoPublicId String?   @map("logo_public_id")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   stripeCustomerId String? @unique @map("stripe_customer_id")
 
