@@ -209,6 +209,60 @@ const leaveOrganization = catchAsync(
   },
 );
 
+
+const updateOrganizationLogo = catchAsync(
+	async (req: Request, res: Response) => {
+		const organizationId = req.user?.organizationId;
+
+    console.log("organizationId", req.user);
+
+		if (!organizationId) {
+			throw new Error(
+				"Organization ID is missing in the request context.",
+			);
+		}
+
+		if (!req.file) {
+			throw new Error("Organization logo is required.");
+		}
+
+		const result =
+			await organizationService.updateOrganizationLogo(
+				organizationId,
+				req.file,
+			);
+
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Organization logo updated successfully",
+			data: result,
+		});
+	},
+);
+
+const deleteOrganizationLogo = catchAsync(
+	async (req: Request, res: Response) => {
+		const organizationId = req.user?.organizationId;
+
+		if (!organizationId) {
+			throw new Error(
+				"Organization ID is missing in the request context.",
+			);
+		}
+
+		const result =
+			await organizationService.deleteOrganizationLogo(
+				organizationId,
+			);
+
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Organization logo deleted successfully",
+			data: result,
+		});
+	},
+);
+
 export const organizationController = {
   
   getMyOrganization,
@@ -220,4 +274,6 @@ export const organizationController = {
   updateMemberStatus,
   removeMember,
   leaveOrganization,
+  updateOrganizationLogo,
+	deleteOrganizationLogo,
 };

@@ -13,6 +13,7 @@ import {
   updateUserStatusValidationSchema,
 } from "./user.schema";
 import { Role } from "../../../../prisma/generated/prisma/enums";
+import { uploadImage } from "../../middleware/multer";
 
 const router = Router();
 
@@ -63,6 +64,19 @@ router.patch(
   authMiddleware.auth(Role.ADMIN),
   validate(updateUserStatusValidationSchema),
   userController.updateUserStatus,
+);
+
+router.patch(
+  "/me/profile-picture",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  uploadImage.single("image"),
+  userController.updateProfileImage,
+);
+
+router.delete(
+  "/me/profile-picture",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  userController.deleteProfileImage,
 );
 
 export const userRoutes = router;

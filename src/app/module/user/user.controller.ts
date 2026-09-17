@@ -122,7 +122,50 @@ const deleteMyAccount = catchAsync(
     });
   },
 );
+const updateProfileImage = catchAsync(
+	async (req: Request, res: Response) => {
+		if (!req.user?.id) {
+			throw new Error(
+				"User ID is missing in the request context.",
+			);
+		}
 
+		if (!req.file) {
+			throw new Error("Profile picture is required.");
+		}
+
+		const result = await userService.updateProfileImage(
+			req.user.id,
+			req.file,
+		);
+
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Profile picture updated successfully",
+			data: result,
+		});
+	},
+);
+
+const deleteProfileImage = catchAsync(
+	async (req: Request, res: Response) => {
+		if (!req.user?.id) {
+			throw new Error(
+				"User ID is missing in the request context.",
+			);
+		}
+
+		const result = await userService.deleteProfileImage(
+			req.user.id,
+		);
+
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Profile picture deleted successfully",
+			data: result,
+		});
+	},
+);
 export const userController = {
   getMyProfile,
   updateMyProfile,
@@ -131,4 +174,6 @@ export const userController = {
   resetPassword,
   updateUserStatus,
   deleteMyAccount,
+  updateProfileImage,
+	deleteProfileImage,
 };

@@ -4,22 +4,27 @@ import { projectService } from "./project.service";
 import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 
-const createProject = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const organizationId = req.user?.organizationId;
-		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
-		}
+const createProject = catchAsync(async (req, res) => {
+  if (!req.user?.organizationId) {
+    throw new Error("Organization ID is missing.");
+  }
 
-		const result = await projectService.createProject(organizationId, req.body);
+  if (!req.file) {
+    throw new Error("Project PDF document is required.");
+  }
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.CREATED,
-			message: "Project created successfully",
-			data: result,
-		});
-	},
-);
+  const result = await projectService.createProject(
+    req.user.organizationId,
+    req.body,
+    req.file,
+  );
+
+  sendSuccessResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    message: "Project created successfully.",
+    data: result,
+  });
+});
 
 const getAllProjects = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -144,6 +149,60 @@ const removeTeamFromProject = catchAsync(
 	},
 );
 
+const uploadProjectDocument = catchAsync(async (req, res) => {
+  if (!req.user?.organizationId) {
+    throw new Error("Organization ID is missing.");
+  }
+
+  if (!req.file) {
+    throw new Error("PDF document is required.");
+  }
+
+  if(!req.params.projectId) {
+    throw new Error("Project ID is required.");
+  }
+
+  const result = await projectService.uploadProjectDocument(
+    req.user.organizationId,
+    req.params.projectId as string,
+    req.file,
+  );
+
+  sendSuccessResponse(res, {
+    statusCode: StatusCodes.OK,
+    message: "Project document uploaded successfully.",
+    data: result,
+  });
+});
+
+const deleteProjectDocument = catchAsync(
+	async (req: Request, res: Response) => {
+		const organizationId = req.user?.organizationId;
+		const { projectId } = req.params;
+
+		if (!organizationId) {
+			throw new Error(
+				"Organization ID is missing in the request context.",
+			);
+		}
+
+		if (!projectId) {
+			throw new Error("Project ID is required.");
+		}
+
+		await projectService.deleteProjectDocument(
+			organizationId,
+			projectId as string,
+		);
+
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Project document deleted successfully",
+			data: null,
+		});
+	},
+);
+
 export const projectController = {
 	createProject,
 	getAllProjects,
@@ -152,4 +211,6 @@ export const projectController = {
 	deleteProject,
 	assignTeamToProject,
 	removeTeamFromProject,
+	uploadProjectDocument,
+	deleteProjectDocument,
 };

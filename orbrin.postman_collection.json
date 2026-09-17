@@ -393,12 +393,7 @@
           "name": "Create project",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -410,20 +405,32 @@
               ]
             },
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Website Revamp\",\n  \"description\": \"Redesigning the company core website\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Website Revamp",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Redesigning the company core website",
+                  "type": "text"
+                },
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": ""
                 }
-              }
+              ]
             },
             "url": {
               "raw": "{{baseUrl}}{{apiPrefix}}/projects",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "projects"]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get all projects",
@@ -624,6 +631,74 @@
               ]
             }
           }
+        },
+        {
+          "name": "Upload project document",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/projects/:projectId/document",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "projects", ":projectId", "document"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete project document",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/projects/:projectId/document",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "projects", ":projectId", "document"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "YOUR_PROJECT_ID_HERE"
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1255,6 +1330,62 @@
               "path": ["{{apiPrefix}}", "users", "me"]
             }
           }
+        },
+        {
+          "name": "Upload Profile Picture",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/users/me/profile-picture",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me", "profile-picture"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile Picture",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/users/me/profile-picture",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "users", "me", "profile-picture"]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1546,6 +1677,62 @@
               "path": ["{{apiPrefix}}", "organizations", "leave"]
             }
           }
+        },
+        {
+          "name": "Upload Organization Logo",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/me/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "me", "logo"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Organization Logo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/me/logo",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "organizations", "me", "logo"]
+            }
+          },
+          "response": []
         }
       ]
     }

@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { cloudinaryService } from "../../services/cloudinary";
 
 import type {
   TUpdateMemberRole,
@@ -263,7 +264,7 @@ const updateMemberStatus = async (
   if (!membership) {
     throw new Error("Organization member not found.");
   }
-  
+
   if (membership?.role === "ADMIN" && payload.status !== "ACTIVE") {
     throw new Error("Cannot change the status of an Admin.");
   }
@@ -340,6 +341,134 @@ const leaveOrganization = async (organizationId: string, userId: string) => {
   });
 };
 
+const updateOrganizationLogo = async (
+  organizationId: string,
+  file: Express.Multer.File,
+) => {
+  const organization = await prisma.organization.findFirst({
+    where: {
+      id: organizationId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      logoPublicId: true,
+    },
+  });
+
+  if (!organization) {
+    throw new Error("Organization not found.");
+  }
+
+  // 1. Upload new logo
+  const uploadedLogo =
+    await cloudinaryService.uploadBuffer(
+      file.buffer,
+      {
+        folder: `orbrin/organizations/${organizationId}/logo`,
+        resourceType: "image",
+      },
+    );
+
+  try {
+    // 2. Update database
+    const updatedOrganization =
+      await prisma.organization.update({
+        where: {
+          id: organizationId,
+        },
+        data: {
+          logoUrl: uploadedLogo.secureUrl,
+          logoPublicId: uploadedLogo.publicId,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+    // 3. Delete old logo
+    if (organization.logoPublicId) {
+      try {
+        await cloudinaryService.deleteAsset(
+          organization.logoPublicId,
+          "image",
+        );
+      } catch (error) {
+        console.error(
+          "Failed to delete old organization logo:",
+          error,
+        );
+      }
+    }
+
+    return updatedOrganization;
+  } catch (error) {
+    // DB update failed, so remove the NEW Cloudinary asset
+    try {
+      await cloudinaryService.deleteAsset(
+        uploadedLogo.publicId,
+        "image",
+      );
+    } catch (cleanupError) {
+      console.error(
+        "Failed to cleanup uploaded logo:",
+        cleanupError,
+      );
+    }
+
+    throw error;
+  }
+};
+
+const deleteOrganizationLogo = async (
+	organizationId: string,
+) => {
+	const organization = await prisma.organization.findFirst({
+		where: {
+			id: organizationId,
+			deletedAt: null,
+		},
+		select: {
+			id: true,
+			logoPublicId: true,
+		},
+	});
+
+	if (!organization) {
+		throw new Error("Organization not found.");
+	}
+
+	if (!organization.logoPublicId) {
+		throw new Error("Organization logo not found.");
+	}
+
+	await cloudinaryService.deleteAsset(
+		organization.logoPublicId,
+		"image",
+	);
+
+	return prisma.organization.update({
+		where: {
+			id: organizationId,
+		},
+		data: {
+			logoUrl: null,
+			logoPublicId: null,
+		},
+		select: {
+			id: true,
+			name: true,
+			slug: true,
+			logoUrl: true,
+		},
+	});
+};
+
 export const organizationService = {
   getMyOrganization,
   updateOrganization,
@@ -350,4 +479,6 @@ export const organizationService = {
   updateMemberStatus,
   removeMember,
   leaveOrganization,
+  updateOrganizationLogo,
+	deleteOrganizationLogo,
 };

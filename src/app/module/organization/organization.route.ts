@@ -3,7 +3,12 @@ import { authMiddleware } from "../../middleware/auth";
 import { organizationController } from "./organization.controller";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { validate } from "../../middleware/validate";
-import { updateMemberRoleValidationSchema, updateMemberStatusValidationSchema, updateOrganizationValidationSchema } from "./organization.schema";
+import {
+  updateMemberRoleValidationSchema,
+  updateMemberStatusValidationSchema,
+  updateOrganizationValidationSchema,
+} from "./organization.schema";
+import { uploadImage } from "../../middleware/multer";
 
 const router = Router();
 
@@ -71,6 +76,19 @@ router.post(
   "/leave",
   authMiddleware.auth(Role.ADMIN),
   organizationController.leaveOrganization,
+);
+
+router.patch(
+  "/me/logo",
+  authMiddleware.auth(Role.ADMIN),
+  uploadImage.single("image"),
+  organizationController.updateOrganizationLogo,
+);
+
+router.delete(
+  "/me/logo",
+  authMiddleware.auth(Role.ADMIN),
+  organizationController.deleteOrganizationLogo,
 );
 
 export const organizationRoutes = router;

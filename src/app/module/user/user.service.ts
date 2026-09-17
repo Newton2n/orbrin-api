@@ -13,6 +13,7 @@ import type {
   TUpdateUserProfile,
   TUpdateUserStatus,
 } from "./user.interface";
+import { cloudinaryService } from "../../services/cloudinary";
 
 const getMyProfile = async (userId: string) => {
   const user = await prisma.user.findUnique({
@@ -297,6 +298,117 @@ const deleteMyAccount = async (userId: string) => {
   });
 };
 
+const updateProfileImage = async (
+	userId: string,
+	file: Express.Multer.File,
+) => {
+	const user = await prisma.user.findUnique({
+		where: {
+			id: userId,
+			deletedAt: null,
+		},
+		select: {
+			id: true,
+			profileImagePublicId: true,
+		},
+	});
+
+	if (!user) {
+		throw new Error("User not found.");
+	}
+
+	const uploadedImage = await cloudinaryService.uploadBuffer(
+		file.buffer,
+		{
+			folder: "orbrin/users/profile-images",
+			resourceType: "image",
+		},
+	);
+
+	try {
+		const updatedUser = await prisma.user.update({
+			where: {
+				id: userId,
+			},
+			data: {
+				profileImageUrl: uploadedImage.secureUrl,
+				profileImagePublicId: uploadedImage.publicId,
+			},
+			select: {
+				id: true,
+				email: true,
+				fullName: true,
+				profileImageUrl: true,
+				emailVerified: true,
+				status: true,
+				authProvider: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+
+		if (user.profileImagePublicId) {
+			await cloudinaryService.deleteAsset(
+				user.profileImagePublicId,
+				"image",
+			);
+		}
+
+		return updatedUser;
+	} catch (error) {
+		await cloudinaryService.deleteAsset(
+			uploadedImage.publicId,
+			"image",
+		);
+
+		throw error;
+	}
+};
+
+const deleteProfileImage = async (userId: string) => {
+	const user = await prisma.user.findUnique({
+		where: {
+			id: userId,
+			deletedAt: null,
+		},
+		select: {
+			id: true,
+			profileImagePublicId: true,
+		},
+	});
+
+	if (!user) {
+		throw new Error("User not found.");
+	}
+
+	if (!user.profileImagePublicId) {
+		throw new Error("Profile picture not found.");
+	}
+
+	await cloudinaryService.deleteAsset(
+		user.profileImagePublicId,
+		"image",
+	);
+
+	const updatedUser = await prisma.user.update({
+		where: {
+			id: userId,
+		},
+		data: {
+			profileImageUrl: null,
+			profileImagePublicId: null,
+		},
+		select: {
+			id: true,
+			email: true,
+			fullName: true,
+			profileImageUrl: true,
+		},
+	});
+
+	return updatedUser;
+};
+
 export const userService = {
   getMyProfile,
   updateMyProfile,
@@ -305,4 +417,6 @@ export const userService = {
   resetPassword,
   updateUserStatus,
   deleteMyAccount,
+  updateProfileImage,
+	deleteProfileImage
 };
