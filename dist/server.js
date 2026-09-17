@@ -2196,7 +2196,7 @@ var deleteProjectDocument = async (organizationId, projectId) => {
   }
   await cloudinaryService.deleteAsset(
     project.documentPublicId,
-    "raw"
+    "image"
   );
   const updatedProject = await prisma.project.update({
     where: {
@@ -2529,7 +2529,11 @@ router3.patch(
   uploadPdf.single("document"),
   projectController.uploadProjectDocument
 );
-router3.delete("/:projectId/document", projectController.deleteProjectDocument);
+router3.delete(
+  "/:projectId/document",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  projectController.deleteProjectDocument
+);
 var projectRoutes = router3;
 
 // src/app/module/task/task.route.ts

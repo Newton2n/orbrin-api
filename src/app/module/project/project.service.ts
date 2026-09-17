@@ -256,7 +256,6 @@ const removeTeamFromProject = async (
 };
 
 // Upload or replace project PDF document
-// Upload or replace project PDF document
 const uploadProjectDocument = async (
   organizationId: string,
   projectId: string,
@@ -384,7 +383,7 @@ const deleteProjectDocument = async (
   // Delete the PDF from Cloudinary as a RAW resource.
   await cloudinaryService.deleteAsset(
     project.documentPublicId,
-    "raw",
+    "image",
   );
 
   const updatedProject = await prisma.project.update({

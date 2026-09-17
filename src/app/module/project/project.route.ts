@@ -73,6 +73,10 @@ router.patch(
   projectController.uploadProjectDocument,
 );
 
-router.delete("/:projectId/document", projectController.deleteProjectDocument);
+router.delete(
+  "/:projectId/document",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  projectController.deleteProjectDocument,
+);
 
 export const projectRoutes = router;
