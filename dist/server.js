@@ -1251,7 +1251,8 @@ var sendSuccessResponse = (res, data) => {
     success: true,
     message: data.message,
     data: data.data,
-    meta: data?.meta
+    meta: data?.meta,
+    pagination: data?.pagination
   });
 };
 
@@ -1402,6 +1403,24 @@ var validate = (schema) => {
     next();
   };
 };
+var validateQuery = (schema) => {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      res.status(400).json({
+        success: false,
+        message: "Validation failed for query parameters",
+        errors: result.error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message
+        }))
+      });
+      return;
+    }
+    req.validatedQuery = result.data;
+    next();
+  };
+};
 
 // src/app/module/auth/auth.schema.ts
 import { z } from "zod";
@@ -1538,6 +1557,23 @@ var authRoutes = router;
 // src/app/module/team/team.route.ts
 import { Router as Router2 } from "express";
 
+// src/app/utils/query.ts
+var getPagination = (page, limit) => ({
+  skip: (page - 1) * limit,
+  take: limit
+});
+var createPaginationMeta = (page, limit, total) => {
+  const totalPages = Math.ceil(total / limit);
+  return {
+    page,
+    limit,
+    total,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1
+  };
+};
+
 // src/app/module/team/team.service.ts
 var createTeam = async (organizationId, payload) => {
   const existingTeam = await prisma.team.findFirst({
@@ -1551,7 +1587,7 @@ var createTeam = async (organizationId, payload) => {
       "A team with this name already exists in the organization."
     );
   }
-  if (existingTeam && existingTeam.deletedAt) {
+  if (existingTeam?.deletedAt) {
     const updatedTeam = await prisma.team.update({
       where: { id: existingTeam.id },
       data: {
@@ -1571,17 +1607,28 @@ var createTeam = async (organizationId, payload) => {
     return team;
   }
 };
-var getAllTeams = async (organizationId) => {
-  const teams = await prisma.team.findMany({
-    where: {
-      organizationId,
-      deletedAt: null
-    },
-    include: {
-      teamMembers: true
-    }
-  });
-  return teams;
+var getAllTeams = async (organizationId, query) => {
+  const { page, limit, search, sortBy, sortOrder } = query;
+  const where = {
+    organizationId,
+    deletedAt: null,
+    ...search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [teams, total] = await prisma.$transaction([
+    prisma.team.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: { teamMembers: true }
+    }),
+    prisma.team.count({ where })
+  ]);
+  return { data: teams, pagination: createPaginationMeta(page, limit, total) };
 };
 var getTeamById = async (organizationId, teamId) => {
   const team = await prisma.team.findFirst({
@@ -1669,11 +1716,13 @@ var getAllTeams2 = catch_async_default(
     if (!organizationId) {
       throw new Error("Organization ID is missing in the request context.");
     }
-    const result = await teamService.getAllTeams(organizationId);
+    const query = req.validatedQuery;
+    const result = await teamService.getAllTeams(organizationId, query);
     sendSuccessResponse(res, {
       statusCode: StatusCodes3.OK,
       message: "Teams retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -1753,24 +1802,40 @@ var teamController = {
 };
 
 // src/app/module/team/team.schema.ts
+import { z as z3 } from "zod";
+
+// src/app/utils/query-schema.ts
 import { z as z2 } from "zod";
-var createTeamSchema = z2.object({
-  body: z2.object({
-    name: z2.string({ error: "Team name is required" }).trim().min(1, { error: "Team name cannot be empty" }),
-    description: z2.string().optional()
+var paginationQuerySchema = z2.object({
+  page: z2.coerce.number().int().min(1).default(1),
+  limit: z2.coerce.number().int().min(1).max(100).default(10)
+});
+var sortOrderSchema = z2.enum(["asc", "desc"]);
+
+// src/app/module/team/team.schema.ts
+var createTeamSchema = z3.object({
+  body: z3.object({
+    name: z3.string({ error: "Team name is required" }).trim().min(1, { error: "Team name cannot be empty" }),
+    description: z3.string().optional()
   })
 });
-var updateTeamSchema = z2.object({
-  body: z2.object({
-    name: z2.string().trim().min(1, { error: "Team name cannot be empty" }).optional(),
-    description: z2.string().optional()
+var updateTeamSchema = z3.object({
+  body: z3.object({
+    name: z3.string().trim().min(1, { error: "Team name cannot be empty" }).optional(),
+    description: z3.string().optional()
   }).refine((body) => Object.keys(body).length > 0, {
     error: "At least one team field is required to update"
   })
 });
+var teamQuerySchema = paginationQuerySchema.extend({
+  search: z3.string().trim().min(1).optional(),
+  sortBy: z3.enum(["name", "createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc")
+});
 var teamValidation = {
   createTeamSchema,
-  updateTeamSchema
+  updateTeamSchema,
+  teamQuerySchema
 };
 
 // src/app/middleware/subscription-check.ts
@@ -1837,6 +1902,7 @@ router2.post(
 router2.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(teamValidation.teamQuerySchema),
   teamController.getAllTeams
 );
 router2.get(
@@ -1922,14 +1988,11 @@ var createProject = async (organizationId, payload, file) => {
   if (file.mimetype !== "application/pdf") {
     throw new Error("Only PDF files are allowed.");
   }
-  const uploadedDocument = await cloudinaryService.uploadBuffer(
-    file.buffer,
-    {
-      folder: `orbrin/organizations/${organizationId}/projects`,
-      resourceType: "image",
-      publicId: crypto.randomUUID()
-    }
-  );
+  const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: `orbrin/organizations/${organizationId}/projects`,
+    resourceType: "image",
+    publicId: crypto.randomUUID()
+  });
   try {
     const project = await prisma.project.create({
       data: {
@@ -1943,10 +2006,7 @@ var createProject = async (organizationId, payload, file) => {
     return project;
   } catch (error) {
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedDocument.publicId,
-        "raw"
-      );
+      await cloudinaryService.deleteAsset(uploadedDocument.publicId, "raw");
     } catch (cleanupError) {
       console.error(
         "Failed to clean up uploaded project document:",
@@ -1956,18 +2016,36 @@ var createProject = async (organizationId, payload, file) => {
     throw error;
   }
 };
-var getAllProjects = async (organizationId) => {
-  const projects = await prisma.project.findMany({
-    where: {
-      organizationId,
-      deletedAt: null
-    },
-    include: {
-      teams: true,
-      tasks: true
-    }
-  });
-  return projects;
+var getAllProjects = async (organizationId, query) => {
+  const { page, limit, search, sortBy, sortOrder, status, teamId } = query;
+  const where = {
+    organizationId,
+    deletedAt: null,
+    ...status ? { status } : {},
+    ...teamId ? { teams: { some: { teamId } } } : {},
+    ...search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [projects, total] = await prisma.$transaction([
+    prisma.project.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        teams: true,
+        tasks: true
+      }
+    }),
+    prisma.project.count({ where })
+  ]);
+  return {
+    data: projects,
+    pagination: createPaginationMeta(page, limit, total)
+  };
 };
 var getProjectById = async (organizationId, projectId) => {
   const project = await prisma.project.findFirst({
@@ -2054,9 +2132,7 @@ var assignTeamToProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (existingAssignment) {
-    throw new Error(
-      "Team is already assigned to this project."
-    );
+    throw new Error("Team is already assigned to this project.");
   }
   const assignment = await prisma.projectTeam.create({
     data: {
@@ -2119,14 +2195,11 @@ var uploadProjectDocument = async (organizationId, projectId, file) => {
   if (file.mimetype !== "application/pdf") {
     throw new Error("Only PDF files are allowed.");
   }
-  const uploadedDocument = await cloudinaryService.uploadBuffer(
-    file.buffer,
-    {
-      folder: `orbrin/organizations/${organizationId}/projects`,
-      resourceType: "image",
-      publicId: crypto.randomUUID()
-    }
-  );
+  const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: `orbrin/organizations/${organizationId}/projects`,
+    resourceType: "image",
+    publicId: crypto.randomUUID()
+  });
   try {
     const updatedProject = await prisma.project.update({
       where: {
@@ -2149,10 +2222,7 @@ var uploadProjectDocument = async (organizationId, projectId, file) => {
     });
     if (project.documentPublicId) {
       try {
-        await cloudinaryService.deleteAsset(
-          project.documentPublicId,
-          "image"
-        );
+        await cloudinaryService.deleteAsset(project.documentPublicId, "image");
       } catch (error) {
         console.error(
           "Failed to delete old project document from Cloudinary:",
@@ -2163,10 +2233,7 @@ var uploadProjectDocument = async (organizationId, projectId, file) => {
     return updatedProject;
   } catch (error) {
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedDocument.publicId,
-        "image"
-      );
+      await cloudinaryService.deleteAsset(uploadedDocument.publicId, "image");
     } catch (cleanupError) {
       console.error(
         "Failed to clean up newly uploaded project document:",
@@ -2194,10 +2261,7 @@ var deleteProjectDocument = async (organizationId, projectId) => {
   if (!project.documentPublicId) {
     throw new Error("Project document not found.");
   }
-  await cloudinaryService.deleteAsset(
-    project.documentPublicId,
-    "image"
-  );
+  await cloudinaryService.deleteAsset(project.documentPublicId, "image");
   const updatedProject = await prisma.project.update({
     where: {
       id: projectId
@@ -2253,11 +2317,13 @@ var getAllProjects2 = catch_async_default(
     if (!organizationId) {
       throw new Error("Organization ID is missing in the request context.");
     }
-    const result = await projectService.getAllProjects(organizationId);
+    const query = req.validatedQuery;
+    const result = await projectService.getAllProjects(organizationId, query);
     sendSuccessResponse(res, {
       statusCode: StatusCodes4.OK,
       message: "Projects retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -2381,9 +2447,7 @@ var deleteProjectDocument2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!organizationId) {
-      throw new Error(
-        "Organization ID is missing in the request context."
-      );
+      throw new Error("Organization ID is missing in the request context.");
     }
     if (!projectId) {
       throw new Error("Project ID is required.");
@@ -2412,29 +2476,37 @@ var projectController = {
 };
 
 // src/app/module/project/project.schema.ts
-import { z as z3 } from "zod";
-var createProjectSchema = z3.object({
-  body: z3.object({
-    name: z3.string({ error: "Project name is required" }).trim().min(1, { error: "Project name cannot be empty" }),
-    description: z3.string().optional()
+import { z as z4 } from "zod";
+var createProjectSchema = z4.object({
+  body: z4.object({
+    name: z4.string({ error: "Project name is required" }).trim().min(1, { error: "Project name cannot be empty" }),
+    description: z4.string().optional()
   })
 });
-var updateProjectSchema = z3.object({
-  body: z3.object({
-    name: z3.string().trim().min(1, { error: "Project name cannot be empty" }).optional(),
-    description: z3.string().optional(),
-    status: z3.string().optional()
+var updateProjectSchema = z4.object({
+  body: z4.object({
+    name: z4.string().trim().min(1, { error: "Project name cannot be empty" }).optional(),
+    description: z4.string().optional(),
+    status: z4.string().optional()
   })
 });
-var assignTeamSchema = z3.object({
-  body: z3.object({
-    teamId: z3.string({ error: "Team ID is required" }).trim().min(1, { error: "Team ID cannot be empty" })
+var assignTeamSchema = z4.object({
+  body: z4.object({
+    teamId: z4.string({ error: "Team ID is required" }).trim().min(1, { error: "Team ID cannot be empty" })
   })
+});
+var projectQuerySchema = paginationQuerySchema.extend({
+  search: z4.string().trim().min(1).optional(),
+  sortBy: z4.enum(["name", "createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  status: z4.string().trim().min(1).optional(),
+  teamId: z4.uuid().optional()
 });
 var projectValidation = {
   createProjectSchema,
   updateProjectSchema,
-  assignTeamSchema
+  assignTeamSchema,
+  projectQuerySchema
 };
 
 // src/app/middleware/multer.ts
@@ -2490,6 +2562,7 @@ router3.post(
 router3.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(projectValidation.projectQuerySchema),
   projectController.getAllProjects
 );
 router3.get(
@@ -2566,20 +2639,47 @@ var createTask = async (organizationId, userId, projectId, payload) => {
   });
   return task;
 };
-var getTasksByProject = async (organizationId, projectId) => {
+var getTasksByProject = async (organizationId, projectId, query) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
     throw new Error("Project not found");
   }
-  const tasks = await prisma.task.findMany({
-    where: {
-      projectId,
-      deletedAt: null
-    }
-  });
-  return tasks;
+  const {
+    page,
+    limit,
+    search,
+    sortBy,
+    sortOrder,
+    status,
+    priority,
+    assigneeId,
+    sprintId
+  } = query;
+  const where = {
+    projectId,
+    deletedAt: null,
+    ...status ? { status } : {},
+    ...priority ? { priority } : {},
+    ...assigneeId ? { assigneeId } : {},
+    ...sprintId ? { sprintId } : {},
+    ...search ? {
+      OR: [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder }
+    }),
+    prisma.task.count({ where })
+  ]);
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
 };
 var getTaskById = async (organizationId, taskId) => {
   const task = await prisma.task.findFirst({
@@ -2695,14 +2795,17 @@ var getTasksByProject2 = catch_async_default(
     if (!projectId) {
       throw new Error("Project ID is missing in the request parameters.");
     }
+    const query = req.validatedQuery;
     const result = await taskService.getTasksByProject(
       organizationId,
-      projectId
+      projectId,
+      query
     );
     sendSuccessResponse(res, {
       statusCode: StatusCodes5.OK,
       message: "Tasks retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -2784,44 +2887,64 @@ var taskController = {
 };
 
 // src/app/module/task/task.schema.ts
-import { z as z4 } from "zod";
-var createTaskSchema = z4.object({
-  body: z4.object({
-    title: z4.string({ error: "Task title is required" }).trim().min(1, { error: "Task title cannot be empty" }),
-    description: z4.string().optional(),
-    status: z4.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
-    priority: z4.enum([
+import { z as z5 } from "zod";
+var createTaskSchema = z5.object({
+  body: z5.object({
+    title: z5.string({ error: "Task title is required" }).trim().min(1, { error: "Task title cannot be empty" }),
+    description: z5.string().optional(),
+    status: z5.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
+    priority: z5.enum([
       TaskPriority.HIGH,
       TaskPriority.MEDIUM,
       TaskPriority.LOW,
       TaskPriority.URGENT
     ]).optional(),
-    dueDate: z4.coerce.date({ message: "Due date must be a valid date" }).optional(),
-    assigneeId: z4.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
-    sprintId: z4.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
-    parentTaskId: z4.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
+    dueDate: z5.coerce.date({ message: "Due date must be a valid date" }).optional(),
+    assigneeId: z5.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
+    sprintId: z5.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
+    parentTaskId: z5.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
   })
 });
-var updateTaskSchema = z4.object({
-  body: z4.object({
-    title: z4.string().trim().min(1, { error: "Task title cannot be empty" }).optional(),
-    description: z4.string().optional(),
-    status: z4.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
-    priority: z4.enum([
+var updateTaskSchema = z5.object({
+  body: z5.object({
+    title: z5.string().trim().min(1, { error: "Task title cannot be empty" }).optional(),
+    description: z5.string().optional(),
+    status: z5.enum([TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE]).optional(),
+    priority: z5.enum([
       TaskPriority.HIGH,
       TaskPriority.MEDIUM,
       TaskPriority.LOW,
       TaskPriority.URGENT
     ]).optional(),
-    dueDate: z4.coerce.date({ message: "Due date must be a valid date" }).optional(),
-    assigneeId: z4.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
-    sprintId: z4.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
-    parentTaskId: z4.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
+    dueDate: z5.coerce.date({ message: "Due date must be a valid date" }).optional(),
+    assigneeId: z5.uuid({ error: "Assignee ID must be a valid UUID" }).optional(),
+    sprintId: z5.uuid({ error: "Sprint ID must be a valid UUID" }).optional(),
+    parentTaskId: z5.uuid({ error: "Parent task ID must be a valid UUID" }).optional()
   })
+});
+var taskQuerySchema = paginationQuerySchema.extend({
+  search: z5.string().trim().min(1).optional(),
+  sortBy: z5.enum(["title", "createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  status: z5.enum([
+    TaskStatus.TODO,
+    TaskStatus.IN_PROGRESS,
+    TaskStatus.REVIEW,
+    TaskStatus.DONE
+  ]).optional(),
+  priority: z5.enum([
+    TaskPriority.HIGH,
+    TaskPriority.MEDIUM,
+    TaskPriority.LOW,
+    TaskPriority.URGENT
+  ]).optional(),
+  assigneeId: z5.uuid().optional(),
+  sprintId: z5.uuid().optional()
 });
 var taskValidation = {
   createTaskSchema,
-  updateTaskSchema
+  updateTaskSchema,
+  taskQuerySchema
 };
 
 // src/app/module/task/task.route.ts
@@ -2836,6 +2959,7 @@ router4.post(
 router4.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(taskValidation.taskQuerySchema),
   taskController.getTasksByProject
 );
 router4.get(
@@ -2881,23 +3005,38 @@ var createSprint = async (organizationId, projectId, payload) => {
   });
   return sprint;
 };
-var getSprintsByProject = async (organizationId, projectId) => {
+var getSprintsByProject = async (organizationId, projectId, query) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
     throw new Error("Project not found");
   }
-  const sprints = await prisma.sprint.findMany({
-    where: {
-      projectId,
-      deletedAt: null
-    },
-    include: {
-      tasks: true
-    }
-  });
-  return sprints;
+  const { page, limit, search, sortBy, sortOrder, status } = query;
+  const where = {
+    projectId,
+    deletedAt: null,
+    ...status ? { status } : {},
+    ...search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { goal: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [sprints, total] = await prisma.$transaction([
+    prisma.sprint.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: { tasks: true }
+    }),
+    prisma.sprint.count({ where })
+  ]);
+  return {
+    data: sprints,
+    pagination: createPaginationMeta(page, limit, total)
+  };
 };
 var getSprintById = async (organizationId, sprintId) => {
   const sprint = await prisma.sprint.findFirst({
@@ -3002,14 +3141,17 @@ var getSprintsByProject2 = catch_async_default(
     if (!projectId) {
       throw new Error("Project ID is missing in the request parameters.");
     }
+    const query = req.validatedQuery;
     const result = await sprintService.getSprintsByProject(
       organizationId,
-      projectId
+      projectId,
+      query
     );
     sendSuccessResponse(res, {
       statusCode: StatusCodes6.OK,
       message: "Sprints retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -3086,36 +3228,43 @@ var sprintController = {
 };
 
 // src/app/module/sprint/sprint.schema.ts
-import { z as z5 } from "zod";
-var createSprintSchema = z5.object({
-  body: z5.object({
-    name: z5.string({ error: "Sprint name is required" }).trim().min(1, { error: "Sprint name cannot be empty" }),
-    goal: z5.string().optional(),
-    status: z5.enum([
+import { z as z6 } from "zod";
+var createSprintSchema = z6.object({
+  body: z6.object({
+    name: z6.string({ error: "Sprint name is required" }).trim().min(1, { error: "Sprint name cannot be empty" }),
+    goal: z6.string().optional(),
+    status: z6.enum([
       SprintStatus.ACTIVE,
       SprintStatus.COMPLETED,
       SprintStatus.PLANNING
     ]).optional(),
-    startDate: z5.coerce.date({ message: "Start date must be a valid date" }).optional(),
-    endDate: z5.coerce.date({ message: "End date must be a valid date" }).optional()
+    startDate: z6.coerce.date({ message: "Start date must be a valid date" }).optional(),
+    endDate: z6.coerce.date({ message: "End date must be a valid date" }).optional()
   })
 });
-var updateSprintSchema = z5.object({
-  body: z5.object({
-    name: z5.string().trim().min(1, { error: "Sprint name cannot be empty" }).optional(),
-    goal: z5.string().optional(),
-    status: z5.enum([
+var updateSprintSchema = z6.object({
+  body: z6.object({
+    name: z6.string().trim().min(1, { error: "Sprint name cannot be empty" }).optional(),
+    goal: z6.string().optional(),
+    status: z6.enum([
       SprintStatus.ACTIVE,
       SprintStatus.COMPLETED,
       SprintStatus.PLANNING
     ]).optional(),
-    startDate: z5.coerce.date({ message: "Start date must be a valid date" }).optional(),
-    endDate: z5.coerce.date({ message: "End date must be a valid date" }).optional()
+    startDate: z6.coerce.date({ message: "Start date must be a valid date" }).optional(),
+    endDate: z6.coerce.date({ message: "End date must be a valid date" }).optional()
   })
+});
+var sprintQuerySchema = paginationQuerySchema.extend({
+  search: z6.string().trim().min(1).optional(),
+  sortBy: z6.enum(["name", "createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  status: z6.enum([SprintStatus.PLANNING, SprintStatus.ACTIVE, SprintStatus.COMPLETED]).optional()
 });
 var sprintValidation = {
   createSprintSchema,
-  updateSprintSchema
+  updateSprintSchema,
+  sprintQuerySchema
 };
 
 // src/app/module/sprint/spring.route.ts
@@ -3130,6 +3279,7 @@ router5.post(
 router5.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(sprintValidation.sprintQuerySchema),
   sprintController.getSprintsByProject
 );
 router5.get(
@@ -3188,7 +3338,7 @@ var createComment = async (organizationId, userId, taskId, payload) => {
   });
   return comment;
 };
-var getCommentsByTask = async (organizationId, taskId) => {
+var getCommentsByTask = async (organizationId, taskId, query) => {
   const task = await prisma.task.findFirst({
     where: {
       id: taskId,
@@ -3202,25 +3352,27 @@ var getCommentsByTask = async (organizationId, taskId) => {
   if (!task) {
     throw new Error("Task not found");
   }
-  const comments = await prisma.comment.findMany({
-    where: {
-      taskId,
-      deletedAt: null
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          fullName: true,
-          email: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: "asc"
-    }
-  });
-  return comments;
+  const { page, limit, search, sortBy, sortOrder } = query;
+  const where = {
+    taskId,
+    deletedAt: null,
+    ...search ? { content: { contains: search, mode: "insensitive" } } : {}
+  };
+  const [comments, total] = await prisma.$transaction([
+    prisma.comment.findMany({
+      where,
+      ...getPagination(page, limit),
+      include: {
+        author: { select: { id: true, fullName: true, email: true } }
+      },
+      orderBy: { [sortBy]: sortOrder }
+    }),
+    prisma.comment.count({ where })
+  ]);
+  return {
+    data: comments,
+    pagination: createPaginationMeta(page, limit, total)
+  };
 };
 var updateComment = async (organizationId, userId, commentId, payload) => {
   const comment = await prisma.comment.findFirst({
@@ -3320,14 +3472,17 @@ var getCommentsByTask2 = catch_async_default(
     if (!taskId) {
       throw new Error("Task ID is missing in the request parameters.");
     }
+    const query = req.validatedQuery;
     const result = await commentService.getCommentsByTask(
       organizationId,
-      taskId
+      taskId,
+      query
     );
     sendSuccessResponse(res, {
       statusCode: StatusCodes7.OK,
       message: "Comments retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -3382,20 +3537,26 @@ var commentController = {
 };
 
 // src/app/module/comment/comment.schema.ts
-import { z as z6 } from "zod";
-var createCommentSchema = z6.object({
-  body: z6.object({
-    content: z6.string({ error: "Comment content is required" }).trim().min(1, { error: "Comment content cannot be empty" })
+import { z as z7 } from "zod";
+var createCommentSchema = z7.object({
+  body: z7.object({
+    content: z7.string({ error: "Comment content is required" }).trim().min(1, { error: "Comment content cannot be empty" })
   })
 });
-var updateCommentSchema = z6.object({
-  body: z6.object({
-    content: z6.string({ error: "Comment content is required" }).trim().min(1, { error: "Comment content cannot be empty" })
+var updateCommentSchema = z7.object({
+  body: z7.object({
+    content: z7.string({ error: "Comment content is required" }).trim().min(1, { error: "Comment content cannot be empty" })
   })
+});
+var commentQuerySchema = paginationQuerySchema.extend({
+  search: z7.string().trim().min(1).optional(),
+  sortBy: z7.enum(["createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc")
 });
 var commentValidation = {
   createCommentSchema,
-  updateCommentSchema
+  updateCommentSchema,
+  commentQuerySchema
 };
 
 // src/app/module/comment/comment.route.ts
@@ -3410,6 +3571,7 @@ router6.post(
 router6.get(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(commentValidation.commentQuerySchema),
   commentController.getCommentsByTask
 );
 router6.patch(
@@ -3658,18 +3820,31 @@ var webhookHandler = async (payload, signature) => {
     eventId: event.id
   };
 };
-var getOrganizationSubscriptionHistory = async (organizationId) => {
-  const subscriptions = await prisma.subscription.findFirst({
-    where: { organizationId },
-    include: {
-      payments: true
-    },
-    orderBy: { createdAt: "desc" }
+var getOrganizationSubscriptionHistory = async (organizationId, query) => {
+  const subscription = await prisma.subscription.findUnique({
+    where: { organizationId }
   });
-  if (!subscriptions) {
+  if (!subscription) {
     throw new Error("No subscription history found for the organization");
   }
-  return subscriptions;
+  const { page, limit, search, sortBy, sortOrder, status } = query;
+  const paymentWhere = {
+    organizationId,
+    ...status ? { status } : {},
+    ...search ? { transactionId: { contains: search, mode: "insensitive" } } : {}
+  };
+  const [payments, total] = await prisma.$transaction([
+    prisma.payment.findMany({
+      where: paymentWhere,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder }
+    }),
+    prisma.payment.count({ where: paymentWhere })
+  ]);
+  return {
+    data: { ...subscription, payments },
+    pagination: createPaginationMeta(page, limit, total)
+  };
 };
 var subscriptionService = {
   createCheckoutSession,
@@ -3700,12 +3875,14 @@ var getSubscriptionHistory = catch_async_default(
       throw new Error("Organization ID is missing in the request context.");
     }
     const result = await subscriptionService.getOrganizationSubscriptionHistory(
-      organizationId
+      organizationId,
+      req.validatedQuery
     );
     sendSuccessResponse(res, {
       statusCode: StatusCodes8.OK,
       message: "Subscription and billing history retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -3729,6 +3906,20 @@ var subscriptionController = {
   webhookHandler: webhookHandler2
 };
 
+// src/app/module/subscription/subscripton.schema.ts
+import { z as z8 } from "zod";
+var subscriptionHistoryQuerySchema = paginationQuerySchema.extend({
+  search: z8.string().trim().min(1).optional(),
+  sortBy: z8.enum(["createdAt", "updatedAt"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  status: z8.enum([
+    PaymentStatus.PENDING,
+    PaymentStatus.COMPLETED,
+    PaymentStatus.FAILED,
+    PaymentStatus.REFUNDED
+  ]).optional()
+});
+
 // src/app/module/subscription/subscripton.route.ts
 var router7 = Router7();
 router7.post("/webhook", subscriptionController.webhookHandler);
@@ -3740,6 +3931,7 @@ router7.post(
 router7.get(
   "/history",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(subscriptionHistoryQuerySchema),
   subscriptionController.getSubscriptionHistory
 );
 var subscriptionRoutes = router7;
@@ -4311,16 +4503,16 @@ var userController = {
 };
 
 // src/app/module/user/user.schema.ts
-import { z as z7 } from "zod";
-var updateUserProfileValidationSchema = z7.object({
-  body: z7.object({
-    fullName: z7.string().trim().min(2, "Full name must be at least 2 characters").max(100, "Full name cannot exceed 100 characters")
+import { z as z9 } from "zod";
+var updateUserProfileValidationSchema = z9.object({
+  body: z9.object({
+    fullName: z9.string().trim().min(2, "Full name must be at least 2 characters").max(100, "Full name cannot exceed 100 characters")
   })
 });
-var changePasswordValidationSchema = z7.object({
-  body: z7.object({
-    currentPassword: z7.string().min(1, "Current password is required"),
-    newPassword: z7.string().min(8, "Password must be at least 8 characters").max(100, "Password cannot exceed 100 characters")
+var changePasswordValidationSchema = z9.object({
+  body: z9.object({
+    currentPassword: z9.string().min(1, "Current password is required"),
+    newPassword: z9.string().min(8, "Password must be at least 8 characters").max(100, "Password cannot exceed 100 characters")
   }).refine(
     (data) => data.currentPassword !== data.newPassword,
     {
@@ -4329,21 +4521,21 @@ var changePasswordValidationSchema = z7.object({
     }
   )
 });
-var forgotPasswordValidationSchema = z7.object({
-  body: z7.object({
-    email: z7.string().email("Invalid email address").toLowerCase().trim()
+var forgotPasswordValidationSchema = z9.object({
+  body: z9.object({
+    email: z9.string().email("Invalid email address").toLowerCase().trim()
   })
 });
-var resetPasswordValidationSchema = z7.object({
-  body: z7.object({
-    email: z7.email(),
-    otp: z7.string().regex(/^\d{6}$/, "OTP must be 6 digits."),
-    newPassword: z7.string().min(8)
+var resetPasswordValidationSchema = z9.object({
+  body: z9.object({
+    email: z9.email(),
+    otp: z9.string().regex(/^\d{6}$/, "OTP must be 6 digits."),
+    newPassword: z9.string().min(8)
   })
 });
-var updateUserStatusValidationSchema = z7.object({
-  body: z7.object({
-    status: z7.enum([
+var updateUserStatusValidationSchema = z9.object({
+  body: z9.object({
+    status: z9.enum([
       "ACTIVE",
       "INACTIVE",
       "SUSPENDED"
@@ -4520,35 +4712,51 @@ var deleteOrganization = async (organizationId) => {
     }
   });
 };
-var getOrganizationMembers = async (organizationId) => {
-  return prisma.organizationMembership.findMany({
-    where: {
-      organizationId,
-      status: "ACTIVE",
-      user: {
-        deletedAt: null
-      }
-    },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-      user: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          emailVerified: true,
-          status: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: "asc"
+var getOrganizationMembers = async (organizationId, query) => {
+  const { page, limit, search, sortBy, sortOrder, role, status } = query;
+  const where = {
+    organizationId,
+    status,
+    ...role ? { role } : {},
+    user: {
+      deletedAt: null,
+      ...search ? {
+        OR: [
+          { fullName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } }
+        ]
+      } : {}
     }
-  });
+  };
+  const orderBy = sortBy === "role" ? { role: sortOrder } : { [sortBy]: sortOrder };
+  const [members, total] = await prisma.$transaction([
+    prisma.organizationMembership.findMany({
+      where,
+      ...getPagination(page, limit),
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            emailVerified: true,
+            status: true
+          }
+        }
+      },
+      orderBy
+    }),
+    prisma.organizationMembership.count({ where })
+  ]);
+  return {
+    data: members,
+    pagination: createPaginationMeta(page, limit, total)
+  };
 };
 var getOrganizationMemberById = async (organizationId, memberId) => {
   const membership = await prisma.organizationMembership.findFirst({
@@ -4706,13 +4914,10 @@ var updateOrganizationLogo = async (organizationId, file) => {
   if (!organization) {
     throw new Error("Organization not found.");
   }
-  const uploadedLogo = await cloudinaryService.uploadBuffer(
-    file.buffer,
-    {
-      folder: `orbrin/organizations/${organizationId}/logo`,
-      resourceType: "image"
-    }
-  );
+  const uploadedLogo = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: `orbrin/organizations/${organizationId}/logo`,
+    resourceType: "image"
+  });
   try {
     const updatedOrganization = await prisma.organization.update({
       where: {
@@ -4733,29 +4938,17 @@ var updateOrganizationLogo = async (organizationId, file) => {
     });
     if (organization.logoPublicId) {
       try {
-        await cloudinaryService.deleteAsset(
-          organization.logoPublicId,
-          "image"
-        );
+        await cloudinaryService.deleteAsset(organization.logoPublicId, "image");
       } catch (error) {
-        console.error(
-          "Failed to delete old organization logo:",
-          error
-        );
+        console.error("Failed to delete old organization logo:", error);
       }
     }
     return updatedOrganization;
   } catch (error) {
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedLogo.publicId,
-        "image"
-      );
+      await cloudinaryService.deleteAsset(uploadedLogo.publicId, "image");
     } catch (cleanupError) {
-      console.error(
-        "Failed to cleanup uploaded logo:",
-        cleanupError
-      );
+      console.error("Failed to cleanup uploaded logo:", cleanupError);
     }
     throw error;
   }
@@ -4777,10 +4970,7 @@ var deleteOrganizationLogo = async (organizationId) => {
   if (!organization.logoPublicId) {
     throw new Error("Organization logo not found.");
   }
-  await cloudinaryService.deleteAsset(
-    organization.logoPublicId,
-    "image"
-  );
+  await cloudinaryService.deleteAsset(organization.logoPublicId, "image");
   return prisma.organization.update({
     where: {
       id: organizationId
@@ -4864,11 +5054,16 @@ var getOrganizationMembers2 = catch_async_default(
     if (!organizationId) {
       throw new Error("Organization ID is missing in the request context.");
     }
-    const result = await organizationService.getOrganizationMembers(organizationId);
+    const query = req.validatedQuery;
+    const result = await organizationService.getOrganizationMembers(
+      organizationId,
+      query
+    );
     sendSuccessResponse(res, {
       statusCode: StatusCodes10.OK,
       message: "Organization members retrieved successfully",
-      data: result
+      data: result.data,
+      pagination: result.pagination
     });
   }
 );
@@ -4977,9 +5172,7 @@ var updateOrganizationLogo2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     console.log("organizationId", req.user);
     if (!organizationId) {
-      throw new Error(
-        "Organization ID is missing in the request context."
-      );
+      throw new Error("Organization ID is missing in the request context.");
     }
     if (!req.file) {
       throw new Error("Organization logo is required.");
@@ -4999,13 +5192,9 @@ var deleteOrganizationLogo2 = catch_async_default(
   async (req, res) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error(
-        "Organization ID is missing in the request context."
-      );
+      throw new Error("Organization ID is missing in the request context.");
     }
-    const result = await organizationService.deleteOrganizationLogo(
-      organizationId
-    );
+    const result = await organizationService.deleteOrganizationLogo(organizationId);
     sendSuccessResponse(res, {
       statusCode: StatusCodes10.OK,
       message: "Organization logo deleted successfully",
@@ -5028,29 +5217,40 @@ var organizationController = {
 };
 
 // src/app/module/organization/organization.schema.ts
-import { z as z8 } from "zod";
-var updateOrganizationValidationSchema = z8.object({
-  body: z8.object({
-    name: z8.string().trim().min(2, "Organization name must be at least 2 characters").max(100, "Organization name cannot exceed 100 characters").optional(),
-    slug: z8.string().trim().toLowerCase().min(2, "Organization slug must be at least 2 characters").max(100, "Organization slug cannot exceed 100 characters").regex(
+import { z as z10 } from "zod";
+var updateOrganizationValidationSchema = z10.object({
+  body: z10.object({
+    name: z10.string().trim().min(2, "Organization name must be at least 2 characters").max(100, "Organization name cannot exceed 100 characters").optional(),
+    slug: z10.string().trim().toLowerCase().min(2, "Organization slug must be at least 2 characters").max(100, "Organization slug cannot exceed 100 characters").regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
       "Slug can only contain lowercase letters, numbers, and hyphens"
     ).optional()
   })
 });
-var updateMemberRoleValidationSchema = z8.object({
-  body: z8.object({
-    role: z8.enum([Role.MEMBER, Role.MANAGER])
+var updateMemberRoleValidationSchema = z10.object({
+  body: z10.object({
+    role: z10.enum([Role.MEMBER, Role.MANAGER])
   })
 });
-var updateMemberStatusValidationSchema = z8.object({
-  body: z8.object({
-    status: z8.enum([
+var updateMemberStatusValidationSchema = z10.object({
+  body: z10.object({
+    status: z10.enum([
       OrganizationMembershipStatus.ACTIVE,
       OrganizationMembershipStatus.INACTIVE,
       OrganizationMembershipStatus.SUSPENDED
     ])
   })
+});
+var organizationMemberQuerySchema = paginationQuerySchema.extend({
+  search: z10.string().trim().min(1).optional(),
+  sortBy: z10.enum(["createdAt", "updatedAt", "role"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  role: z10.enum([Role.ADMIN, Role.MANAGER, Role.MEMBER]).optional(),
+  status: z10.enum([
+    OrganizationMembershipStatus.ACTIVE,
+    OrganizationMembershipStatus.INACTIVE,
+    OrganizationMembershipStatus.SUSPENDED
+  ]).default(OrganizationMembershipStatus.ACTIVE)
 });
 
 // src/app/module/organization/organization.route.ts
@@ -5074,6 +5274,7 @@ router9.delete(
 router9.get(
   "/members",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(organizationMemberQuerySchema),
   organizationController.getOrganizationMembers
 );
 router9.get(

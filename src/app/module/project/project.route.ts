@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { projectController } from "./project.controller";
-import { validate } from "../../middleware/validate";
+import { validate, validateQuery } from "../../middleware/validate";
 import { projectValidation } from "./project.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
@@ -22,6 +22,7 @@ router.post(
 router.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(projectValidation.projectQuerySchema),
   projectController.getAllProjects,
 );
 

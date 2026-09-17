@@ -3,6 +3,10 @@ import {
   OrganizationMembershipStatus,
   Role,
 } from "../../../../prisma/generated/prisma/client";
+import {
+  paginationQuerySchema,
+  sortOrderSchema,
+} from "../../utils/query-schema";
 
 export const updateOrganizationValidationSchema = z.object({
   body: z.object({
@@ -41,4 +45,18 @@ export const updateMemberStatusValidationSchema = z.object({
       OrganizationMembershipStatus.SUSPENDED,
     ]),
   }),
+});
+
+export const organizationMemberQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().min(1).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "role"]).default("createdAt"),
+  sortOrder: sortOrderSchema.default("desc"),
+  role: z.enum([Role.ADMIN, Role.MANAGER, Role.MEMBER]).optional(),
+  status: z
+    .enum([
+      OrganizationMembershipStatus.ACTIVE,
+      OrganizationMembershipStatus.INACTIVE,
+      OrganizationMembershipStatus.SUSPENDED,
+    ])
+    .default(OrganizationMembershipStatus.ACTIVE),
 });

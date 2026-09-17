@@ -1,5 +1,9 @@
 import { prisma } from "../../lib/prisma";
 import { cloudinaryService } from "../../services/cloudinary";
+import type { Prisma } from "../../../../prisma/generated/prisma/client";
+import { createPaginationMeta, getPagination } from "../../utils/query";
+import type { z } from "zod";
+import type { projectValidation } from "./project.schema";
 
 import type {
   ICreateProjectPayload,
@@ -19,14 +23,11 @@ const createProject = async (
     throw new Error("Only PDF files are allowed.");
   }
 
-const uploadedDocument = await cloudinaryService.uploadBuffer(
-  file.buffer,
-  {
+  const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
     folder: `orbrin/organizations/${organizationId}/projects`,
     resourceType: "image",
     publicId: crypto.randomUUID(),
-  },
-);
+  });
 
   try {
     const project = await prisma.project.create({
@@ -43,10 +44,7 @@ const uploadedDocument = await cloudinaryService.uploadBuffer(
   } catch (error) {
     // Database failed, so remove the uploaded PDF.
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedDocument.publicId,
-        "raw",
-      );
+      await cloudinaryService.deleteAsset(uploadedDocument.publicId, "raw");
     } catch (cleanupError) {
       console.error(
         "Failed to clean up uploaded project document:",
@@ -59,26 +57,47 @@ const uploadedDocument = await cloudinaryService.uploadBuffer(
 };
 
 // Get all projects for an organization
-const getAllProjects = async (organizationId: string) => {
-  const projects = await prisma.project.findMany({
-    where: {
-      organizationId,
-      deletedAt: null,
-    },
-    include: {
-      teams: true,
-      tasks: true,
-    },
-  });
+const getAllProjects = async (
+  organizationId: string,
+  query: z.infer<typeof projectValidation.projectQuerySchema>,
+) => {
+  const { page, limit, search, sortBy, sortOrder, status, teamId } = query;
+  const where: Prisma.ProjectWhereInput = {
+    organizationId,
+    deletedAt: null,
+    ...(status ? { status } : {}),
+    ...(teamId ? { teams: { some: { teamId } } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
 
-  return projects;
+  const [projects, total] = await prisma.$transaction([
+    prisma.project.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        teams: true,
+        tasks: true,
+      },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return {
+    data: projects,
+    pagination: createPaginationMeta(page, limit, total),
+  };
 };
 
 // Get a project by its ID
-const getProjectById = async (
-  organizationId: string,
-  projectId: string,
-) => {
+const getProjectById = async (organizationId: string, projectId: string) => {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
@@ -127,10 +146,7 @@ const updateProject = async (
 };
 
 // Delete a project by its ID (soft delete)
-const deleteProject = async (
-  organizationId: string,
-  projectId: string,
-) => {
+const deleteProject = async (organizationId: string, projectId: string) => {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
@@ -196,9 +212,7 @@ const assignTeamToProject = async (
   });
 
   if (existingAssignment) {
-    throw new Error(
-      "Team is already assigned to this project.",
-    );
+    throw new Error("Team is already assigned to this project.");
   }
 
   const assignment = await prisma.projectTeam.create({
@@ -287,14 +301,11 @@ const uploadProjectDocument = async (
   }
 
   // Upload new PDF first
-  const uploadedDocument = await cloudinaryService.uploadBuffer(
-    file.buffer,
-    {
-      folder: `orbrin/organizations/${organizationId}/projects`,
-      resourceType: "image",
-      publicId: crypto.randomUUID(),
-    },
-  );
+  const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: `orbrin/organizations/${organizationId}/projects`,
+    resourceType: "image",
+    publicId: crypto.randomUUID(),
+  });
 
   try {
     // Update database with the new document
@@ -321,10 +332,7 @@ const uploadProjectDocument = async (
     // Delete old document AFTER database update succeeds
     if (project.documentPublicId) {
       try {
-        await cloudinaryService.deleteAsset(
-          project.documentPublicId,
-          "image",
-        );
+        await cloudinaryService.deleteAsset(project.documentPublicId, "image");
       } catch (error) {
         // Don't fail the request if old Cloudinary asset
         // could not be deleted.
@@ -340,10 +348,7 @@ const uploadProjectDocument = async (
     // Database update failed.
     // Remove the newly uploaded PDF from Cloudinary.
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedDocument.publicId,
-        "image",
-      );
+      await cloudinaryService.deleteAsset(uploadedDocument.publicId, "image");
     } catch (cleanupError) {
       console.error(
         "Failed to clean up newly uploaded project document:",
@@ -381,10 +386,7 @@ const deleteProjectDocument = async (
   }
 
   // Delete the PDF from Cloudinary as a RAW resource.
-  await cloudinaryService.deleteAsset(
-    project.documentPublicId,
-    "image",
-  );
+  await cloudinaryService.deleteAsset(project.documentPublicId, "image");
 
   const updatedProject = await prisma.project.update({
     where: {

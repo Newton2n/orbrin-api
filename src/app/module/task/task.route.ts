@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { taskController } from "./task.controller";
-import { validate } from "../../middleware/validate";
+import { validate, validateQuery } from "../../middleware/validate";
 import { taskValidation } from "./task.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
@@ -9,42 +9,43 @@ const router = Router();
 
 // Create a new task for a project
 router.post(
-	"/projects/:projectId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-	subscriptionCheck,
-	validate(taskValidation.createTaskSchema),
-	taskController.createTask,
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  subscriptionCheck,
+  validate(taskValidation.createTaskSchema),
+  taskController.createTask,
 );
 
 // Get all tasks for a project
 router.get(
-	"/projects/:projectId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-	taskController.getTasksByProject,
+  "/projects/:projectId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(taskValidation.taskQuerySchema),
+  taskController.getTasksByProject,
 );
 
 // Get a single task by its ID
 router.get(
-	"/:taskId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-	taskController.getTaskById,
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  taskController.getTaskById,
 );
 
 // Update a task by its ID
 router.patch(
-	"/:taskId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-	subscriptionCheck,
-	validate(taskValidation.updateTaskSchema),
-	taskController.updateTask,
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  subscriptionCheck,
+  validate(taskValidation.updateTaskSchema),
+  taskController.updateTask,
 );
 
 // Delete a task by its ID
 router.delete(
-	"/:taskId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
-	subscriptionCheck,
-	taskController.deleteTask,
+  "/:taskId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  subscriptionCheck,
+  taskController.deleteTask,
 );
 
 export const taskRoutes = router;

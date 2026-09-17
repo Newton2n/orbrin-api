@@ -2,11 +2,12 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { organizationController } from "./organization.controller";
 import { Role } from "../../../../prisma/generated/prisma/enums";
-import { validate } from "../../middleware/validate";
+import { validate, validateQuery } from "../../middleware/validate";
 import {
   updateMemberRoleValidationSchema,
   updateMemberStatusValidationSchema,
   updateOrganizationValidationSchema,
+  organizationMemberQuerySchema,
 } from "./organization.schema";
 import { uploadImage } from "../../middleware/multer";
 
@@ -38,6 +39,7 @@ router.delete(
 router.get(
   "/members",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  validateQuery(organizationMemberQuerySchema),
   organizationController.getOrganizationMembers,
 );
 

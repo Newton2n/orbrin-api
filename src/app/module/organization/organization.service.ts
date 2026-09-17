@@ -1,4 +1,8 @@
 import { prisma } from "../../lib/prisma";
+import type { Prisma } from "../../../../prisma/generated/prisma/client";
+import { createPaginationMeta, getPagination } from "../../utils/query";
+import type { z } from "zod";
+import type { organizationMemberQuerySchema } from "./organization.schema";
 import { cloudinaryService } from "../../services/cloudinary";
 
 import type {
@@ -133,36 +137,59 @@ const deleteOrganization = async (organizationId: string) => {
   });
 };
 
-const getOrganizationMembers = async (organizationId: string) => {
-  return prisma.organizationMembership.findMany({
-    where: {
-      organizationId,
-      status: "ACTIVE",
-      user: {
-        deletedAt: null,
-      },
+const getOrganizationMembers = async (
+  organizationId: string,
+  query: z.infer<typeof organizationMemberQuerySchema>,
+) => {
+  const { page, limit, search, sortBy, sortOrder, role, status } = query;
+  const where: Prisma.OrganizationMembershipWhereInput = {
+    organizationId,
+    status,
+    ...(role ? { role } : {}),
+    user: {
+      deletedAt: null,
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
+  };
+  const orderBy =
+    sortBy === "role" ? { role: sortOrder } : { [sortBy]: sortOrder };
 
-      user: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          emailVerified: true,
-          status: true,
+  const [members, total] = await prisma.$transaction([
+    prisma.organizationMembership.findMany({
+      where,
+      ...getPagination(page, limit),
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            emailVerified: true,
+            status: true,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+      orderBy,
+    }),
+    prisma.organizationMembership.count({ where }),
+  ]);
+
+  return {
+    data: members,
+    pagination: createPaginationMeta(page, limit, total),
+  };
 };
 
 const getOrganizationMemberById = async (
@@ -361,48 +388,37 @@ const updateOrganizationLogo = async (
   }
 
   // 1. Upload new logo
-  const uploadedLogo =
-    await cloudinaryService.uploadBuffer(
-      file.buffer,
-      {
-        folder: `orbrin/organizations/${organizationId}/logo`,
-        resourceType: "image",
-      },
-    );
+  const uploadedLogo = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: `orbrin/organizations/${organizationId}/logo`,
+    resourceType: "image",
+  });
 
   try {
     // 2. Update database
-    const updatedOrganization =
-      await prisma.organization.update({
-        where: {
-          id: organizationId,
-        },
-        data: {
-          logoUrl: uploadedLogo.secureUrl,
-          logoPublicId: uploadedLogo.publicId,
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          logoUrl: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+    const updatedOrganization = await prisma.organization.update({
+      where: {
+        id: organizationId,
+      },
+      data: {
+        logoUrl: uploadedLogo.secureUrl,
+        logoPublicId: uploadedLogo.publicId,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logoUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     // 3. Delete old logo
     if (organization.logoPublicId) {
       try {
-        await cloudinaryService.deleteAsset(
-          organization.logoPublicId,
-          "image",
-        );
+        await cloudinaryService.deleteAsset(organization.logoPublicId, "image");
       } catch (error) {
-        console.error(
-          "Failed to delete old organization logo:",
-          error,
-        );
+        console.error("Failed to delete old organization logo:", error);
       }
     }
 
@@ -410,63 +426,52 @@ const updateOrganizationLogo = async (
   } catch (error) {
     // DB update failed, so remove the NEW Cloudinary asset
     try {
-      await cloudinaryService.deleteAsset(
-        uploadedLogo.publicId,
-        "image",
-      );
+      await cloudinaryService.deleteAsset(uploadedLogo.publicId, "image");
     } catch (cleanupError) {
-      console.error(
-        "Failed to cleanup uploaded logo:",
-        cleanupError,
-      );
+      console.error("Failed to cleanup uploaded logo:", cleanupError);
     }
 
     throw error;
   }
 };
 
-const deleteOrganizationLogo = async (
-	organizationId: string,
-) => {
-	const organization = await prisma.organization.findFirst({
-		where: {
-			id: organizationId,
-			deletedAt: null,
-		},
-		select: {
-			id: true,
-			logoPublicId: true,
-		},
-	});
+const deleteOrganizationLogo = async (organizationId: string) => {
+  const organization = await prisma.organization.findFirst({
+    where: {
+      id: organizationId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      logoPublicId: true,
+    },
+  });
 
-	if (!organization) {
-		throw new Error("Organization not found.");
-	}
+  if (!organization) {
+    throw new Error("Organization not found.");
+  }
 
-	if (!organization.logoPublicId) {
-		throw new Error("Organization logo not found.");
-	}
+  if (!organization.logoPublicId) {
+    throw new Error("Organization logo not found.");
+  }
 
-	await cloudinaryService.deleteAsset(
-		organization.logoPublicId,
-		"image",
-	);
+  await cloudinaryService.deleteAsset(organization.logoPublicId, "image");
 
-	return prisma.organization.update({
-		where: {
-			id: organizationId,
-		},
-		data: {
-			logoUrl: null,
-			logoPublicId: null,
-		},
-		select: {
-			id: true,
-			name: true,
-			slug: true,
-			logoUrl: true,
-		},
-	});
+  return prisma.organization.update({
+    where: {
+      id: organizationId,
+    },
+    data: {
+      logoUrl: null,
+      logoPublicId: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logoUrl: true,
+    },
+  });
 };
 
 export const organizationService = {
@@ -480,5 +485,5 @@ export const organizationService = {
   removeMember,
   leaveOrganization,
   updateOrganizationLogo,
-	deleteOrganizationLogo,
+  deleteOrganizationLogo,
 };

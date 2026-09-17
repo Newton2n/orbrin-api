@@ -5,7 +5,8 @@ import catchAsync from "../../utils/catch-async";
 import { sendSuccessResponse } from "../../utils/response";
 
 import { organizationService } from "./organization.service";
-
+import type { z } from "zod";
+import { organizationMemberQuerySchema } from "./organization.schema";
 
 const getMyOrganization = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -15,7 +16,6 @@ const getMyOrganization = catchAsync(
       throw new Error("Organization ID is missing ");
     }
 
-  
     const result = await organizationService.getMyOrganization(organizationId);
 
     sendSuccessResponse(res, {
@@ -73,13 +73,19 @@ const getOrganizationMembers = catchAsync(
       throw new Error("Organization ID is missing in the request context.");
     }
 
-    const result =
-      await organizationService.getOrganizationMembers(organizationId);
+    const query = req.validatedQuery as z.infer<
+      typeof organizationMemberQuerySchema
+    >;
+    const result = await organizationService.getOrganizationMembers(
+      organizationId,
+      query,
+    );
 
     sendSuccessResponse(res, {
       statusCode: StatusCodes.OK,
       message: "Organization members retrieved successfully",
-      data: result,
+      data: result.data,
+      pagination: result.pagination,
     });
   },
 );
@@ -209,62 +215,53 @@ const leaveOrganization = catchAsync(
   },
 );
 
-
 const updateOrganizationLogo = catchAsync(
-	async (req: Request, res: Response) => {
-		const organizationId = req.user?.organizationId;
+  async (req: Request, res: Response) => {
+    const organizationId = req.user?.organizationId;
 
     console.log("organizationId", req.user);
 
-		if (!organizationId) {
-			throw new Error(
-				"Organization ID is missing in the request context.",
-			);
-		}
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
 
-		if (!req.file) {
-			throw new Error("Organization logo is required.");
-		}
+    if (!req.file) {
+      throw new Error("Organization logo is required.");
+    }
 
-		const result =
-			await organizationService.updateOrganizationLogo(
-				organizationId,
-				req.file,
-			);
+    const result = await organizationService.updateOrganizationLogo(
+      organizationId,
+      req.file,
+    );
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "Organization logo updated successfully",
-			data: result,
-		});
-	},
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes.OK,
+      message: "Organization logo updated successfully",
+      data: result,
+    });
+  },
 );
 
 const deleteOrganizationLogo = catchAsync(
-	async (req: Request, res: Response) => {
-		const organizationId = req.user?.organizationId;
+  async (req: Request, res: Response) => {
+    const organizationId = req.user?.organizationId;
 
-		if (!organizationId) {
-			throw new Error(
-				"Organization ID is missing in the request context.",
-			);
-		}
+    if (!organizationId) {
+      throw new Error("Organization ID is missing in the request context.");
+    }
 
-		const result =
-			await organizationService.deleteOrganizationLogo(
-				organizationId,
-			);
+    const result =
+      await organizationService.deleteOrganizationLogo(organizationId);
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "Organization logo deleted successfully",
-			data: result,
-		});
-	},
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes.OK,
+      message: "Organization logo deleted successfully",
+      data: result,
+    });
+  },
 );
 
 export const organizationController = {
-  
   getMyOrganization,
   updateOrganization,
   deleteOrganization,
@@ -275,5 +272,5 @@ export const organizationController = {
   removeMember,
   leaveOrganization,
   updateOrganizationLogo,
-	deleteOrganizationLogo,
+  deleteOrganizationLogo,
 };

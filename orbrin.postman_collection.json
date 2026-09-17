@@ -217,9 +217,17 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/subscriptions/history",
+              "raw": "{{baseUrl}}{{apiPrefix}}/subscriptions/history?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "subscriptions", "history"]
+              "path": ["{{apiPrefix}}", "subscriptions", "history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "status", "value": "COMPLETED" },
+                { "key": "search", "value": "invoice" }
+              ]
             }
           }
         }
@@ -322,9 +330,16 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/teams",
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams?page=1&limit=10&search=frontend&sortBy=createdAt&sortOrder=desc",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "teams"]
+              "path": ["{{apiPrefix}}", "teams"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "frontend" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
+              ]
             }
           }
         },
@@ -448,9 +463,17 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/projects",
+              "raw": "{{baseUrl}}{{apiPrefix}}/projects?page=1&limit=10&search=website&sortBy=createdAt&sortOrder=desc&status=active",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "projects"]
+              "path": ["{{apiPrefix}}", "projects"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "website" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "status", "value": "active" }
+              ]
             }
           }
         },
@@ -763,7 +786,7 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/projects/:projectId",
+              "raw": "{{baseUrl}}{{apiPrefix}}/tasks/projects/:projectId?page=1&limit=10&sortBy=createdAt&sortOrder=desc&status=IN_PROGRESS&priority=HIGH",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "tasks", "projects", ":projectId"],
               "variable": [
@@ -771,6 +794,15 @@
                   "key": "projectId",
                   "value": "YOUR_PROJECT_ID_HERE"
                 }
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "authentication" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "status", "value": "IN_PROGRESS" },
+                { "key": "priority", "value": "HIGH" }
               ]
             }
           }
@@ -936,7 +968,7 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/projects/:projectId",
+              "raw": "{{baseUrl}}{{apiPrefix}}/sprints/projects/:projectId?page=1&limit=10&search=release&sortBy=createdAt&sortOrder=desc&status=ACTIVE",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "sprints", "projects", ":projectId"],
               "variable": [
@@ -944,6 +976,14 @@
                   "key": "projectId",
                   "value": "YOUR_PROJECT_ID_HERE"
                 }
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "release" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "status", "value": "ACTIVE" }
               ]
             }
           }
@@ -1109,7 +1149,7 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/comments/tasks/:taskId",
+              "raw": "{{baseUrl}}{{apiPrefix}}/comments/tasks/:taskId?page=1&limit=10&search=decision&sortBy=createdAt&sortOrder=desc",
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "comments", "tasks", ":taskId"],
               "variable": [
@@ -1117,6 +1157,13 @@
                   "key": "taskId",
                   "value": "YOUR_TASK_ID_HERE"
                 }
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "decision" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
               ]
             }
           }
@@ -1488,9 +1535,18 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members",
+              "raw": "{{baseUrl}}{{apiPrefix}}/organizations/members?page=1&limit=10&search=newton&sortBy=createdAt&sortOrder=desc&role=MEMBER&status=ACTIVE",
               "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "organizations", "members"]
+              "path": ["{{apiPrefix}}", "organizations", "members"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "newton" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "role", "value": "MEMBER" },
+                { "key": "status", "value": "ACTIVE" }
+              ]
             }
           }
         },
