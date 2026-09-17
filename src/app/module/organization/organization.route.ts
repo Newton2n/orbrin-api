@@ -1,57 +1,71 @@
 import { Router } from "express";
-
+import { authMiddleware } from "../../middleware/auth";
 import { organizationController } from "./organization.controller";
+import { Role } from "../../../../prisma/generated/prisma/enums";
 
 const router = Router();
 
-router.post(
-	"/",
-	organizationController.createOrganization,
-);
-
+// Get the current user's organization
 router.get(
-	"/me",
-	organizationController.getMyOrganization,
+  "/me",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  organizationController.getMyOrganization,
 );
 
+// Update the current user's organization
 router.patch(
-	"/me",
-	organizationController.updateOrganization,
+  "/me",
+  authMiddleware.auth(Role.ADMIN),
+  organizationController.updateOrganization,
 );
 
+// Delete the current user's organization
 router.delete(
-	"/me",
-	organizationController.deleteOrganization,
+  "/me",
+  authMiddleware.auth(Role.ADMIN),
+  organizationController.deleteOrganization,
 );
 
+// Get all members of the current user's organization
 router.get(
-	"/members",
-	organizationController.getOrganizationMembers,
+  "/members",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  organizationController.getOrganizationMembers,
 );
 
+// Get a specific member of the current user's organization by ID
 router.get(
-	"/members/:memberId",
-	organizationController.getOrganizationMemberById,
+  "/members/:memberId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  organizationController.getOrganizationMemberById,
 );
 
+// Update a member's role in the current user's organization
 router.patch(
-	"/members/:memberId/role",
-	organizationController.updateMemberRole,
+  "/members/:memberId/role",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  organizationController.updateMemberRole,
 );
 
+// Update a member's status in the current user's organization
 router.patch(
-	"/members/:memberId/status",
-	organizationController.updateMemberStatus,
+  "/members/:memberId/status",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  organizationController.updateMemberStatus,
 );
 
+// Remove a member from the current user's organization
 router.delete(
-	"/members/:memberId",
-	organizationController.removeMember,
+  "/members/:memberId",
+  authMiddleware.auth(Role.ADMIN),
+  organizationController.removeMember,
 );
 
+// Leave the current user's organization
 router.post(
-	"/leave",
-	organizationController.leaveOrganization,
+  "/leave",
+  authMiddleware.auth(Role.ADMIN),
+  organizationController.leaveOrganization,
 );
 
 export const organizationRoutes = router;

@@ -1262,42 +1262,6 @@
       "name": "organizations",
       "item": [
         {
-          "name": "Create organization",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Orbrin Technologies\",\n  \"slug\": \"orbrin-technologies\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}{{apiPrefix}}/organizations",
-              "host": ["{{baseUrl}}"],
-              "path": ["{{apiPrefix}}", "organizations"]
-            }
-          }
-        },
-        {
           "name": "Get my organization",
           "request": {
             "method": "GET",

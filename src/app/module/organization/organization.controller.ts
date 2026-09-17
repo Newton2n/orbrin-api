@@ -6,33 +6,16 @@ import { sendSuccessResponse } from "../../utils/response";
 
 import { organizationService } from "./organization.service";
 
-const createOrganization = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
-    }
-
-    const result = await organizationService.createOrganization(
-      req.user.id,
-      req.body,
-    );
-
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes.CREATED,
-      message: "Organization created successfully",
-      data: result,
-    });
-  },
-);
 
 const getMyOrganization = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const organizationId = req.user?.organizationId;
-
+    console.log("organizationId", req.user);
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new Error("Organization ID is missing ");
     }
 
+  
     const result = await organizationService.getMyOrganization(organizationId);
 
     sendSuccessResponse(res, {
@@ -227,7 +210,7 @@ const leaveOrganization = catchAsync(
 );
 
 export const organizationController = {
-  createOrganization,
+  
   getMyOrganization,
   updateOrganization,
   deleteOrganization,
