@@ -45,18 +45,22 @@ router.patch(
 // Change password
 router.patch(
   "/me/password",
-   authMiddleware.auth(Role.ADMIN,Role.MANAGER,Role.MEMBER),
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   validate(changePasswordValidationSchema),
   userController.changePassword,
 );
 
-// Update user status (Admin only)
-router.delete("/me",  authMiddleware.auth(Role.ADMIN), userController.deleteMyAccount);
+// Update user status
+router.delete(
+  "/me",
+  authMiddleware.auth(Role.MANAGER, Role.MEMBER),
+  userController.deleteMyAccount,
+);
 
 // Update user status (Admin only)
 router.patch(
   "/:userId/status",
-   authMiddleware.auth(Role.ADMIN),
+  authMiddleware.auth(Role.ADMIN),
   validate(updateUserStatusValidationSchema),
   userController.updateUserStatus,
 );
