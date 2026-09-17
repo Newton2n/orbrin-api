@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  OrganizationMembershipStatus,
+  Role,
+} from "../../../../prisma/generated/prisma/client";
 
 export const updateOrganizationValidationSchema = z.object({
   body: z.object({
@@ -25,12 +29,16 @@ export const updateOrganizationValidationSchema = z.object({
 
 export const updateMemberRoleValidationSchema = z.object({
   body: z.object({
-    role: z.enum(["ADMIN", "MANAGER", "MEMBER"]),
+    role: z.enum([Role.MEMBER, Role.MANAGER]),
   }),
 });
 
 export const updateMemberStatusValidationSchema = z.object({
   body: z.object({
-    status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+    status: z.enum([
+      OrganizationMembershipStatus.ACTIVE,
+      OrganizationMembershipStatus.INACTIVE,
+      OrganizationMembershipStatus.SUSPENDED,
+    ]),
   }),
 });

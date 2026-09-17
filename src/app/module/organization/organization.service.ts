@@ -218,6 +218,14 @@ const updateMemberRole = async (
     throw new Error("Organization member not found.");
   }
 
+  if (membership.role === "ADMIN") {
+    throw new Error("Cannot update the role of an ADMIN member.");
+  }
+
+  if (payload.role === "ADMIN") {
+    throw new Error("Cannot assign ADMIN role to a member.");
+  }
+
   return prisma.organizationMembership.update({
     where: {
       id: membership.id,
@@ -255,6 +263,10 @@ const updateMemberStatus = async (
   if (!membership) {
     throw new Error("Organization member not found.");
   }
+  
+  if (membership?.role === "ADMIN" && payload.status !== "ACTIVE") {
+    throw new Error("Cannot change the status of an Admin.");
+  }
 
   return prisma.organizationMembership.update({
     where: {
@@ -278,6 +290,7 @@ const updateMemberStatus = async (
   });
 };
 
+// Remove a member from an organization
 const removeMember = async (organizationId: string, memberId: string) => {
   const membership = await prisma.organizationMembership.findFirst({
     where: {
@@ -301,6 +314,7 @@ const removeMember = async (organizationId: string, memberId: string) => {
   });
 };
 
+// leave an organization
 const leaveOrganization = async (organizationId: string, userId: string) => {
   const membership = await prisma.organizationMembership.findUnique({
     where: {

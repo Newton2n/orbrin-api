@@ -2,6 +2,8 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { organizationController } from "./organization.controller";
 import { Role } from "../../../../prisma/generated/prisma/enums";
+import { validate } from "../../middleware/validate";
+import { updateMemberRoleValidationSchema, updateMemberStatusValidationSchema, updateOrganizationValidationSchema } from "./organization.schema";
 
 const router = Router();
 
@@ -16,6 +18,7 @@ router.get(
 router.patch(
   "/me",
   authMiddleware.auth(Role.ADMIN),
+  validate(updateOrganizationValidationSchema),
   organizationController.updateOrganization,
 );
 
@@ -44,6 +47,7 @@ router.get(
 router.patch(
   "/members/:memberId/role",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(updateMemberRoleValidationSchema),
   organizationController.updateMemberRole,
 );
 
@@ -51,6 +55,7 @@ router.patch(
 router.patch(
   "/members/:memberId/status",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  validate(updateMemberStatusValidationSchema),
   organizationController.updateMemberStatus,
 );
 
