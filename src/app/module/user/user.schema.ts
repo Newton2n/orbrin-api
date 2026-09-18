@@ -1,46 +1,35 @@
 import { z } from "zod";
 
 export const updateUserProfileValidationSchema = z.object({
-  body: z.object({
-    fullName: z
-      .string()
-      .trim()
-      .min(2, "Full name must be at least 2 characters")
-      .max(100, "Full name cannot exceed 100 characters"),
-  }),
+	body: z.object({
+		fullName: z
+			.string()
+			.trim()
+			.min(2, "Full name must be at least 2 characters")
+			.max(100, "Full name cannot exceed 100 characters"),
+	}),
 });
 
 export const changePasswordValidationSchema = z.object({
-  body: z
-    .object({
-      currentPassword: z
-        .string()
-        .min(1, "Current password is required"),
+	body: z
+		.object({
+			currentPassword: z.string().min(1, "Current password is required"),
 
-      newPassword: z
-        .string()
-        .min(8, "Password must be at least 8 characters")
-        .max(100, "Password cannot exceed 100 characters"),
-    })
-    .refine(
-      (data) =>
-        data.currentPassword !== data.newPassword,
-      {
-        message:
-          "New password must be different from current password",
-        path: ["newPassword"],
-      },
-    ),
+			newPassword: z
+				.string()
+				.min(8, "Password must be at least 8 characters")
+				.max(100, "Password cannot exceed 100 characters"),
+		})
+		.refine((data) => data.currentPassword !== data.newPassword, {
+			message: "New password must be different from current password",
+			path: ["newPassword"],
+		}),
 });
 
 export const forgotPasswordValidationSchema = z.object({
-  body: z.object({
-    email: z
-      .string()
-      .email("Invalid email address")
-      .toLowerCase()
-      .trim(),
-  }),
+	body: z.object({
+		email: z.string().email("Invalid email address").toLowerCase().trim(),
+	}),
 });
 
 export const resetPasswordValidationSchema = z.object({
@@ -52,11 +41,7 @@ export const resetPasswordValidationSchema = z.object({
 });
 
 export const updateUserStatusValidationSchema = z.object({
-  body: z.object({
-    status: z.enum([
-      "ACTIVE",
-      "INACTIVE",
-      "SUSPENDED",
-    ]),
-  }),
+	body: z.object({
+		status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+	}),
 });

@@ -61,20 +61,17 @@ const googleLoginSchema = z.object({
 	}),
 });
 
-
 export const sendVerificationEmailValidationSchema = z.object({
-  body: z.object({
-    email: z.email("Invalid email address."),
-  }),
+	body: z.object({
+		email: z.email("Invalid email address."),
+	}),
 });
 
 export const verifyEmailValidationSchema = z.object({
-  body: z.object({
-    email: z.email("Invalid email address."),
-    otp: z
-      .string()
-      .regex(/^\d{6}$/, "OTP must be a 6-digit number."),
-  }),
+	body: z.object({
+		email: z.email("Invalid email address."),
+		otp: z.string().regex(/^\d{6}$/, "OTP must be a 6-digit number."),
+	}),
 });
 
 export const authValidation = {
@@ -82,5 +79,5 @@ export const authValidation = {
 	registerMemberSchema,
 	loginSchema,
 	googleLoginSchema,
-	sendVerificationEmailValidationSchema
+	sendVerificationEmailValidationSchema,
 };

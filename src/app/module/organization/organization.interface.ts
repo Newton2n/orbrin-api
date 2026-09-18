@@ -1,18 +1,21 @@
-import type { OrganizationMembershipStatus, Role } from "../../../../prisma/generated/prisma/enums";
+import type {
+	OrganizationMembershipStatus,
+	Role,
+} from "../../../../prisma/generated/prisma/enums";
 export interface TCreateOrganization {
-  name: string;
-  slug: string;
+	name: string;
+	slug: string;
 }
 
 export interface TUpdateOrganization {
-  name?: string;
-  slug?: string;
+	name?: string;
+	slug?: string;
 }
 
 export interface TUpdateMemberRole {
-  role: Role;
+	role: Role;
 }
 
 export interface TUpdateMemberStatus {
-  status: OrganizationMembershipStatus;
+	status: OrganizationMembershipStatus;
 }

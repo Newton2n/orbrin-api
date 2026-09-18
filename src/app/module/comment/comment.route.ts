@@ -12,40 +12,40 @@ const router = Router();
 
 // Add a comment to a task
 router.post(
-  "/tasks/:taskId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-  subscriptionCheck,
-  emailVerificationMiddleware,
-  validate(commentValidation.createCommentSchema),
-  commentController.createComment,
+	"/tasks/:taskId",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	subscriptionCheck,
+	emailVerificationMiddleware,
+	validate(commentValidation.createCommentSchema),
+	commentController.createComment,
 );
 
 // Get all comments for a task
 router.get(
-  "/tasks/:taskId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-  emailVerificationMiddleware,
-  validateQuery(commentValidation.commentQuerySchema),
-  commentController.getCommentsByTask,
+	"/tasks/:taskId",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	emailVerificationMiddleware,
+	validateQuery(commentValidation.commentQuerySchema),
+	commentController.getCommentsByTask,
 );
 
 // Update a comment by ID
 router.patch(
-  "/:commentId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-  emailVerificationMiddleware,
-  subscriptionCheck,
-  validate(commentValidation.updateCommentSchema),
-  commentController.updateComment,
+	"/:commentId",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	emailVerificationMiddleware,
+	subscriptionCheck,
+	validate(commentValidation.updateCommentSchema),
+	commentController.updateComment,
 );
 
 // Delete a comment by ID
 router.delete(
-  "/:commentId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-  emailVerificationMiddleware,
-  subscriptionCheck,
-  commentController.deleteComment,
+	"/:commentId",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	emailVerificationMiddleware,
+	subscriptionCheck,
+	commentController.deleteComment,
 );
 
 export const commentRoutes = router;

@@ -12,19 +12,19 @@ router.post("/webhook", subscriptionController.webhookHandler);
 
 // Create Stripe Checkout Session (Admin only)
 router.post(
-  "/checkout",
-  authMiddleware.auth(Role.ADMIN),
-  emailVerificationMiddleware,
-  subscriptionController.createCheckoutSession,
+	"/checkout",
+	authMiddleware.auth(Role.ADMIN),
+	emailVerificationMiddleware,
+	subscriptionController.createCheckoutSession,
 );
 
 // Get Subscription & Payment History for Organization
 router.get(
-  "/history",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
-  emailVerificationMiddleware,
-  validateQuery(subscriptionHistoryQuerySchema),
-  subscriptionController.getSubscriptionHistory,
+	"/history",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	emailVerificationMiddleware,
+	validateQuery(subscriptionHistoryQuerySchema),
+	subscriptionController.getSubscriptionHistory,
 );
 
 export const subscriptionRoutes = router;

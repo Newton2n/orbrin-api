@@ -4,181 +4,181 @@ import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
 import type { subscriptionHistoryQuerySchema } from "./subscripton.schema";
 import {
-  PaymentGateway,
-  SubscriptionStatus,
+	PaymentGateway,
+	SubscriptionStatus,
 } from "../../../../prisma/generated/prisma/enums";
 import config from "../../config";
 import type { Stripe } from "stripe";
 import {
-  handleInvoicePaymentSucceeded,
-  handlePaymentSuccess,
+	handleInvoicePaymentSucceeded,
+	handlePaymentSuccess,
 } from "../../utils/stripe-event";
 
 const createCheckoutSession = async (
-  organizationId: string,
-  userId: string,
+	organizationId: string,
+	userId: string,
 ) => {
-  const organization = await prisma.organization.findUnique({
-    where: {
-      id: organizationId,
-      deletedAt: null,
-      memberships: {
-        some: { userId },
-      },
-    },
-    include: { subscriptions: true },
-  });
+	const organization = await prisma.organization.findUnique({
+		where: {
+			id: organizationId,
+			deletedAt: null,
+			memberships: {
+				some: { userId },
+			},
+		},
+		include: { subscriptions: true },
+	});
 
-  if (!organization) {
-    throw new Error("Organization not found");
-  }
+	if (!organization) {
+		throw new Error("Organization not found");
+	}
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId, deletedAt: null },
-    include: { memberships: { where: { organizationId } } },
-  });
+	const user = await prisma.user.findUnique({
+		where: { id: userId, deletedAt: null },
+		include: { memberships: { where: { organizationId } } },
+	});
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+	if (!user) {
+		throw new Error("User not found");
+	}
 
-  if (user.memberships[0].role !== "ADMIN") {
-    throw new Error("Only ADMIN users can create a subscription.");
-  }
+	if (user.memberships[0].role !== "ADMIN") {
+		throw new Error("Only ADMIN users can create a subscription.");
+	}
 
-  const subscription = organization.subscriptions;
-  const today = new Date();
-  const subcriptionEndDate = subscription?.currentPeriodEnd;
+	const subscription = organization.subscriptions;
+	const today = new Date();
+	const subcriptionEndDate = subscription?.currentPeriodEnd;
 
-  if (subcriptionEndDate && subcriptionEndDate > today) {
-    throw new Error(
-      "Cannot create a new subscription while the current subscription is still active.",
-    );
-  }
+	if (subcriptionEndDate && subcriptionEndDate > today) {
+		throw new Error(
+			"Cannot create a new subscription while the current subscription is still active.",
+		);
+	}
 
-  let customerId = organization.stripeCustomerId;
+	let customerId = organization.stripeCustomerId;
 
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      name: organization.name,
-      metadata: { organizationId },
-    });
-    customerId = customer.id;
+	if (!customerId) {
+		const customer = await stripe.customers.create({
+			name: organization.name,
+			metadata: { organizationId },
+		});
+		customerId = customer.id;
 
-    await prisma.organization.update({
-      where: { id: organizationId },
-      data: { stripeCustomerId: customerId },
-    });
-  }
+		await prisma.organization.update({
+			where: { id: organizationId },
+			data: { stripeCustomerId: customerId },
+		});
+	}
 
-  // Create or ensure a PENDING subscription record exists before opening checkout
-  await prisma.subscription.upsert({
-    where: { organizationId },
-    update: {
-      status: SubscriptionStatus.PENDING,
-    },
-    create: {
-      organizationId,
-      planName: "orbrin base one month",
-      status: SubscriptionStatus.PENDING,
-      gateway: PaymentGateway.STRIPE, // Will be set after successful checkout
-    },
-  });
+	// Create or ensure a PENDING subscription record exists before opening checkout
+	await prisma.subscription.upsert({
+		where: { organizationId },
+		update: {
+			status: SubscriptionStatus.PENDING,
+		},
+		create: {
+			organizationId,
+			planName: "orbrin base one month",
+			status: SubscriptionStatus.PENDING,
+			gateway: PaymentGateway.STRIPE, // Will be set after successful checkout
+		},
+	});
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ["card"],
-    line_items: [{ price: config.orbrin_base_one_month_plan_id, quantity: 1 }],
-    mode: "subscription",
-    success_url: `${config.frontend_url}/subscription/success`,
-    cancel_url: `${config.frontend_url}/subscription/cancel`,
-    metadata: {
-      organizationId,
-      planName: "orbrin base one month",
-      amount: "20",
-    },
-  });
+	const session = await stripe.checkout.sessions.create({
+		customer: customerId,
+		payment_method_types: ["card"],
+		line_items: [{ price: config.orbrin_base_one_month_plan_id, quantity: 1 }],
+		mode: "subscription",
+		success_url: `${config.frontend_url}/subscription/success`,
+		cancel_url: `${config.frontend_url}/subscription/cancel`,
+		metadata: {
+			organizationId,
+			planName: "orbrin base one month",
+			amount: "20",
+		},
+	});
 
-  return { url: session.url };
+	return { url: session.url };
 };
 
 const webhookHandler = async (payload: Buffer, signature: string) => {
-  const webhookSecret = config.stripe_webhook_secret;
+	const webhookSecret = config.stripe_webhook_secret;
 
-  const event: Stripe.Event = stripe.webhooks.constructEvent(
-    payload,
-    signature,
-    webhookSecret,
-  );
+	const event: Stripe.Event = stripe.webhooks.constructEvent(
+		payload,
+		signature,
+		webhookSecret,
+	);
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
+	switch (event.type) {
+		case "checkout.session.completed": {
+			const session = event.data.object as Stripe.Checkout.Session;
 
-      await handlePaymentSuccess(session);
+			await handlePaymentSuccess(session);
 
-      break;
-    }
+			break;
+		}
 
-    case "invoice.payment_succeeded": {
-      console.log("invoice payment succeeded hit");
+		case "invoice.payment_succeeded": {
+			console.log("invoice payment succeeded hit");
 
-      const invoice = event.data.object as Stripe.Invoice;
+			const invoice = event.data.object as Stripe.Invoice;
 
-      await handleInvoicePaymentSucceeded(invoice);
+			await handleInvoicePaymentSucceeded(invoice);
 
-      break;
-    }
+			break;
+		}
 
-    default: {
-      console.log(`Unhandled Stripe event: ${event.type}`);
-      break;
-    }
-  }
+		default: {
+			console.log(`Unhandled Stripe event: ${event.type}`);
+			break;
+		}
+	}
 
-  return {
-    eventType: event.type,
-    eventId: event.id,
-  };
+	return {
+		eventType: event.type,
+		eventId: event.id,
+	};
 };
 
 const getOrganizationSubscriptionHistory = async (
-  organizationId: string,
-  query: z.infer<typeof subscriptionHistoryQuerySchema>,
+	organizationId: string,
+	query: z.infer<typeof subscriptionHistoryQuerySchema>,
 ) => {
-  const subscription = await prisma.subscription.findUnique({
-    where: { organizationId },
-  });
+	const subscription = await prisma.subscription.findUnique({
+		where: { organizationId },
+	});
 
-  if (!subscription) {
-    throw new Error("No subscription history found for the organization");
-  }
+	if (!subscription) {
+		throw new Error("No subscription history found for the organization");
+	}
 
-  const { page, limit, search, sortBy, sortOrder, status } = query;
-  const paymentWhere = {
-    organizationId,
-    ...(status ? { status } : {}),
-    ...(search
-      ? { transactionId: { contains: search, mode: "insensitive" as const } }
-      : {}),
-  };
-  const [payments, total] = await prisma.$transaction([
-    prisma.payment.findMany({
-      where: paymentWhere,
-      ...getPagination(page, limit),
-      orderBy: { [sortBy]: sortOrder },
-    }),
-    prisma.payment.count({ where: paymentWhere }),
-  ]);
+	const { page, limit, search, sortBy, sortOrder, status } = query;
+	const paymentWhere = {
+		organizationId,
+		...(status ? { status } : {}),
+		...(search
+			? { transactionId: { contains: search, mode: "insensitive" as const } }
+			: {}),
+	};
+	const [payments, total] = await prisma.$transaction([
+		prisma.payment.findMany({
+			where: paymentWhere,
+			...getPagination(page, limit),
+			orderBy: { [sortBy]: sortOrder },
+		}),
+		prisma.payment.count({ where: paymentWhere }),
+	]);
 
-  return {
-    data: { ...subscription, payments },
-    pagination: createPaginationMeta(page, limit, total),
-  };
+	return {
+		data: { ...subscription, payments },
+		pagination: createPaginationMeta(page, limit, total),
+	};
 };
 
 export const subscriptionService = {
-  createCheckoutSession,
-  getOrganizationSubscriptionHistory,
-  webhookHandler,
+	createCheckoutSession,
+	getOrganizationSubscriptionHistory,
+	webhookHandler,
 };

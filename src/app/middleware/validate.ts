@@ -2,56 +2,56 @@ import type { Request, Response, NextFunction } from "express";
 import type { z } from "zod";
 
 type BodyValidationSchema = z.ZodObject<{
-  body: z.ZodTypeAny;
+	body: z.ZodTypeAny;
 }>;
 
 export const validate = (schema: BodyValidationSchema) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const result = schema.safeParse({
-      body: req.body,
-    });
+	return (req: Request, res: Response, next: NextFunction): void => {
+		const result = schema.safeParse({
+			body: req.body,
+		});
 
-    if (!result.success) {
-      res.status(400).json({
-        status: "error",
-        errors: result.error.issues.map((err) => ({
-          field: err.path.slice(1).join("."),
-          message: err.message,
-        })),
-      });
-      return;
-    }
+		if (!result.success) {
+			res.status(400).json({
+				status: "error",
+				errors: result.error.issues.map((err) => ({
+					field: err.path.slice(1).join("."),
+					message: err.message,
+				})),
+			});
+			return;
+		}
 
-    req.body = result.data.body;
-    next();
-  };
+		req.body = result.data.body;
+		next();
+	};
 };
 
 declare global {
-  namespace Express {
-    interface Request {
-      validatedQuery?: unknown;
-    }
-  }
+	namespace Express {
+		interface Request {
+			validatedQuery?: unknown;
+		}
+	}
 }
 
 export const validateQuery = (schema: z.ZodType) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const result = schema.safeParse(req.query);
+	return (req: Request, res: Response, next: NextFunction): void => {
+		const result = schema.safeParse(req.query);
 
-    if (!result.success) {
-      res.status(400).json({
-        success: false,
-        message: "Validation failed for query parameters",
-        errors: result.error.issues.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        })),
-      });
-      return;
-    }
+		if (!result.success) {
+			res.status(400).json({
+				success: false,
+				message: "Validation failed for query parameters",
+				errors: result.error.issues.map((err) => ({
+					field: err.path.join("."),
+					message: err.message,
+				})),
+			});
+			return;
+		}
 
-    req.validatedQuery = result.data;
-    next();
-  };
+		req.validatedQuery = result.data;
+		next();
+	};
 };
