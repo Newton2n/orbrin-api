@@ -1,4 +1,6 @@
 import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 import type { Prisma } from "../../../../prisma/generated/prisma/client";
 import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
@@ -18,7 +20,7 @@ const createSprint = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
 	}
 
 	const sprint = await prisma.sprint.create({
@@ -45,7 +47,7 @@ const getSprintsByProject = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
 	}
 
 	const { page, limit, search, sortBy, sortOrder, status } = query;
@@ -96,7 +98,7 @@ const getSprintById = async (organizationId: string, sprintId: string) => {
 	});
 
 	if (!sprint) {
-		throw new Error("Sprint not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Sprint not found");
 	}
 
 	return sprint;
@@ -119,7 +121,7 @@ const updateSprint = async (
 	});
 
 	if (!sprint) {
-		throw new Error("Sprint not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Sprint not found");
 	}
 
 	const updateData: IUpdateSprintPayload = { ...payload };
@@ -154,7 +156,7 @@ const deleteSprint = async (organizationId: string, sprintId: string) => {
 	});
 
 	if (!sprint) {
-		throw new Error("Sprint not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Sprint not found");
 	}
 
 	const deletedSprint = await prisma.sprint.update({

@@ -7,13 +7,17 @@ import { sendSuccessResponse } from "../../utils/response";
 import { organizationService } from "./organization.service";
 import type { z } from "zod";
 import type { organizationMemberQuerySchema } from "./organization.schema";
+import { AppError } from "../../utils/app-error";
 
 const getMyOrganization = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const organizationId = req.user?.organizationId;
 		console.log("organizationId", req.user);
 		if (!organizationId) {
-			throw new Error("Organization ID is missing ");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing ",
+			);
 		}
 
 		const result = await organizationService.getMyOrganization(organizationId);
@@ -31,7 +35,10 @@ const updateOrganization = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result = await organizationService.updateOrganization(
@@ -52,7 +59,10 @@ const deleteOrganization = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		await organizationService.deleteOrganization(organizationId);
@@ -70,7 +80,10 @@ const getOrganizationMembers = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const query = req.validatedQuery as z.infer<
@@ -96,11 +109,14 @@ const getOrganizationMemberById = catchAsync(
 		const { memberId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!memberId) {
-			throw new Error("Member ID is required.");
+			throw new AppError(StatusCodes.BAD_REQUEST, "Member ID is required.");
 		}
 
 		const result = await organizationService.getOrganizationMemberById(
@@ -122,11 +138,14 @@ const updateMemberRole = catchAsync(
 		const { memberId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!memberId) {
-			throw new Error("Member ID is required.");
+			throw new AppError(StatusCodes.BAD_REQUEST, "Member ID is required.");
 		}
 
 		const result = await organizationService.updateMemberRole(
@@ -149,11 +168,14 @@ const updateMemberStatus = catchAsync(
 		const { memberId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!memberId) {
-			throw new Error("Member ID is required.");
+			throw new AppError(StatusCodes.BAD_REQUEST, "Member ID is required.");
 		}
 
 		const result = await organizationService.updateMemberStatus(
@@ -176,11 +198,14 @@ const removeMember = catchAsync(
 		const { memberId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!memberId) {
-			throw new Error("Member ID is required.");
+			throw new AppError(StatusCodes.BAD_REQUEST, "Member ID is required.");
 		}
 
 		await organizationService.removeMember(organizationId, memberId as string);
@@ -198,11 +223,17 @@ const leaveOrganization = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		await organizationService.leaveOrganization(organizationId, req.user.id);
@@ -222,11 +253,17 @@ const updateOrganizationLogo = catchAsync(
 		console.log("organizationId", req.user);
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!req.file) {
-			throw new Error("Organization logo is required.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization logo is required.",
+			);
 		}
 
 		const result = await organizationService.updateOrganizationLogo(
@@ -247,7 +284,10 @@ const deleteOrganizationLogo = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result =

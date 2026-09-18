@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
+import { AppError } from "../utils/app-error";
 
 export const emailVerificationMiddleware = async (
 	req: Request,
@@ -6,31 +8,29 @@ export const emailVerificationMiddleware = async (
 	next: NextFunction,
 ) => {
 	if (!req.user) {
-		res.status(401).json({
-			success: false,
-			message: "You are not logged in. Please log in to access this resource.",
-			errors: [],
-		});
+		next(
+			new AppError(
+				StatusCodes.UNAUTHORIZED,
+				"You are not logged in. Please log in to access this resource.",
+			),
+		);
 		return;
 	}
 
 	const user = req.user;
 
 	if (!user) {
-		res.status(404).json({
-			success: false,
-			message: "User not found.",
-			errors: [],
-		});
+		next(new AppError(StatusCodes.NOT_FOUND, "User not found."));
 		return;
 	}
 
 	if (!user.emailVerified) {
-		res.status(403).json({
-			success: false,
-			message: "Please verify your email before accessing this resource.",
-			errors: [],
-		});
+		next(
+			new AppError(
+				StatusCodes.FORBIDDEN,
+				"Please verify your email before accessing this resource.",
+			),
+		);
 		return;
 	}
 

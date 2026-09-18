@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
+import { AppError } from "../../utils/app-error";
 
 import catchAsync from "../../utils/catch-async";
 import { sendSuccessResponse } from "../../utils/response";
@@ -8,7 +9,10 @@ import { userService } from "./user.service";
 const getMyProfile = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		const result = await userService.getMyProfile(req.user.id);
@@ -24,7 +28,10 @@ const getMyProfile = catchAsync(
 const updateMyProfile = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		const result = await userService.updateMyProfile(req.user.id, req.body);
@@ -40,7 +47,10 @@ const updateMyProfile = catchAsync(
 const changePassword = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		await userService.changePassword(req.user.id, req.body);
@@ -83,14 +93,18 @@ const updateUserStatus = catchAsync(
 		const admin = req.user;
 		const adminOrganizationId = admin?.organizationId;
 		if (!adminOrganizationId) {
-			throw new Error(
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
 				"Admin organization ID is missing in the request context.",
 			);
 		}
 		const { userId } = req.params;
 
 		if (!userId) {
-			throw new Error("User ID is required to update user status.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is required to update user status.",
+			);
 		}
 
 		const result = await userService.updateUserStatus(
@@ -110,7 +124,10 @@ const updateUserStatus = catchAsync(
 const deleteMyAccount = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		await userService.deleteMyAccount(req.user.id);
@@ -124,11 +141,14 @@ const deleteMyAccount = catchAsync(
 );
 const updateProfileImage = catchAsync(async (req: Request, res: Response) => {
 	if (!req.user?.id) {
-		throw new Error("User ID is missing in the request context.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"User ID is missing in the request context.",
+		);
 	}
 
 	if (!req.file) {
-		throw new Error("Profile picture is required.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Profile picture is required.");
 	}
 
 	const result = await userService.updateProfileImage(req.user.id, req.file);
@@ -142,7 +162,10 @@ const updateProfileImage = catchAsync(async (req: Request, res: Response) => {
 
 const deleteProfileImage = catchAsync(async (req: Request, res: Response) => {
 	if (!req.user?.id) {
-		throw new Error("User ID is missing in the request context.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"User ID is missing in the request context.",
+		);
 	}
 
 	const result = await userService.deleteProfileImage(req.user.id);

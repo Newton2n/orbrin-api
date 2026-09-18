@@ -1,4 +1,6 @@
 import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 import type { Prisma } from "../../../../prisma/generated/prisma/client";
 import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
@@ -18,7 +20,8 @@ const createTeam = async (
 	});
 
 	if (existingTeam && !existingTeam.deletedAt) {
-		throw new Error(
+		throw new AppError(
+			StatusCodes.CONFLICT,
 			"A team with this name already exists in the organization.",
 		);
 	}
@@ -98,7 +101,7 @@ const getTeamById = async (organizationId: string, teamId: string) => {
 	});
 
 	if (!team) {
-		throw new Error("Team not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found");
 	}
 
 	return team;
@@ -119,7 +122,7 @@ const updateTeam = async (
 	});
 
 	if (!team) {
-		throw new Error("Team not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found");
 	}
 
 	const updatedTeam = await prisma.team.update({
@@ -141,7 +144,7 @@ const deleteTeam = async (organizationId: string, teamId: string) => {
 	});
 
 	if (!team) {
-		throw new Error("Team not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found");
 	}
 
 	const updatedTeam = await prisma.team.update({

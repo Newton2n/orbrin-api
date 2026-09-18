@@ -3,6 +3,7 @@ import catchAsync from "../../utils/catch-async";
 import { authService } from "./auth.service";
 import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
+import { AppError } from "../../utils/app-error";
 
 const registerOrgOwner = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -64,7 +65,10 @@ const getMe = catchAsync(
 		const userId = req.user?.id;
 		console.log("user", req.user);
 		if (!userId) {
-			throw new Error("Cannot fetch user, please log in again");
+			throw new AppError(
+				StatusCodes.UNAUTHORIZED,
+				"Cannot fetch user, please log in again",
+			);
 		}
 
 		const result = await authService.getMe(userId);
@@ -81,7 +85,10 @@ const refreshToken = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const { refreshToken: token } = req.cookies;
 		if (!token) {
-			throw new Error("No refresh token provided. Please log in again.");
+			throw new AppError(
+				StatusCodes.UNAUTHORIZED,
+				"No refresh token provided. Please log in again.",
+			);
 		}
 
 		const { accessToken, jwtPayload } = await authService.refreshToken(token);

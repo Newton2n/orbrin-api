@@ -13,6 +13,8 @@ import { verifyGoogleToken } from "../../lib/google";
 import { redis } from "../../lib/redis";
 import { mailService } from "../../services/mail";
 import crypto from "node:crypto";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 
 const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
 	const existingUser = await prisma.user.findUnique({
@@ -20,7 +22,10 @@ const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
 	});
 
 	if (existingUser) {
-		throw new Error("Organization owner with this email already exists.");
+		throw new AppError(
+			StatusCodes.CONFLICT,
+			"Organization owner with this email already exists.",
+		);
 	}
 
 	const hashedPassword = await bcrypt.hash(
@@ -77,7 +82,7 @@ const registerMember = async (payload: TRegisterMemberBody) => {
 	});
 
 	if (!organization || organization.deletedAt) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	const hashedPassword = await bcrypt.hash(
@@ -126,11 +131,14 @@ const login = async (payload: TLoginBody) => {
 	});
 
 	if (!user || user.deletedAt) {
-		throw new Error("Invalid email or password");
+		throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid email or password");
 	}
 
 	if (!user.passwordHash && user.authProvider === "GOOGLE") {
-		throw new Error("Please login using Google Sign-In");
+		throw new AppError(
+			StatusCodes.UNAUTHORIZED,
+			"Please login using Google Sign-In",
+		);
 	}
 
 	const isPasswordValid = await bcrypt.compare(
@@ -138,16 +146,22 @@ const login = async (payload: TLoginBody) => {
 		user?.passwordHash as string,
 	);
 	if (!isPasswordValid) {
-		throw new Error("Invalid email or password");
+		throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid email or password");
 	}
 
 	if (user.status !== "ACTIVE") {
-		throw new Error("Account is inactive or blocked.");
+		throw new AppError(
+			StatusCodes.UNAUTHORIZED,
+			"Account is inactive or blocked.",
+		);
 	}
 
 	const membership = user.memberships[0];
 	if (!membership) {
-		throw new Error("User does not belong to any organization.");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"User does not belong to any organization.",
+		);
 	}
 
 	const jwtPayload = {
@@ -205,7 +219,7 @@ const getMe = async (userId: string) => {
 	});
 
 	if (!user || user.deletedAt) {
-		throw new Error("User not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found");
 	}
 
 	return user;
@@ -218,7 +232,7 @@ const refreshToken = async (incomingRefreshToken: string) => {
 	);
 
 	if (!verifiedToken.success) {
-		throw new Error("Invalid refresh token");
+		throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid refresh token");
 	}
 
 	const { id } = verifiedToken.data as { id: string };
@@ -231,12 +245,15 @@ const refreshToken = async (incomingRefreshToken: string) => {
 	});
 
 	if (!user || user.deletedAt || user.status !== "ACTIVE") {
-		throw new Error("User not found or inactive");
+		throw new AppError(StatusCodes.UNAUTHORIZED, "User not found or inactive");
 	}
 
 	const membership = user.memberships[0];
 	if (!membership) {
-		throw new Error("User does not belong to an organization");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"User does not belong to an organization",
+		);
 	}
 
 	const jwtPayload = {
@@ -267,7 +284,7 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
 	const payload = verifyResult;
 
 	if (!payload || !payload.email) {
-		throw new Error("Invalid Google token");
+		throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid Google token");
 	}
 
 	const { sub: providerId, email, name: fullName } = payload;
@@ -286,7 +303,8 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
 	});
 
 	if (user?.memberships[0].role === "ADMIN") {
-		throw new Error(
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
 			"Organization owner cannot login via Google. Please use your email and password to login.",
 		);
 	}
@@ -314,7 +332,10 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
 	} else {
 		// If user doesn't exist, register them as a MEMBER automatically
 		if (!defaultOrganizationId) {
-			throw new Error("Organization ID is required for new Google signup.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is required for new Google signup.",
+			);
 		}
 
 		const organization = await prisma.organization.findUnique({
@@ -322,7 +343,7 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
 		});
 
 		if (!organization) {
-			throw new Error("Organization not found");
+			throw new AppError(StatusCodes.NOT_FOUND, "Organization not found");
 		}
 
 		user = await prisma.user.create({
@@ -349,7 +370,10 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
 	}
 
 	if (!user) {
-		throw new Error("User creation or retrieval failed.");
+		throw new AppError(
+			StatusCodes.INTERNAL_SERVER_ERROR,
+			"User creation or retrieval failed.",
+		);
 	}
 
 	//  Generate app JWT tokens
@@ -429,11 +453,11 @@ const verifyEmail = async (payload: TVerifyEmail) => {
 	});
 
 	if (!user) {
-		throw new Error("Invalid email or OTP.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid email or OTP.");
 	}
 
 	if (user.emailVerified) {
-		throw new Error("Email is already verified.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Email is already verified.");
 	}
 
 	const hashedOtp = crypto
@@ -446,7 +470,7 @@ const verifyEmail = async (payload: TVerifyEmail) => {
 	const storedOtp = await redis.get<string>(redisKey);
 
 	if (!storedOtp || storedOtp !== hashedOtp) {
-		throw new Error("Invalid or expired OTP.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP.");
 	}
 
 	const updatedUser = await prisma.user.update({

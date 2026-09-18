@@ -1,4 +1,6 @@
 import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 import type { Prisma } from "../../../../prisma/generated/prisma/client";
 import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
@@ -27,7 +29,7 @@ const createComment = async (
 	});
 
 	if (!task) {
-		throw new Error("Task not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
 	}
 
 	const comment = await prisma.comment.create({
@@ -68,7 +70,7 @@ const getCommentsByTask = async (
 	});
 
 	if (!task) {
-		throw new Error("Task not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
 	}
 
 	const { page, limit, search, sortBy, sortOrder } = query;
@@ -118,11 +120,14 @@ const updateComment = async (
 	});
 
 	if (!comment) {
-		throw new Error("Comment not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Comment not found");
 	}
 
 	if (comment.authorId !== userId) {
-		throw new Error("Unauthorized to update this comment");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"Unauthorized to update this comment",
+		);
 	}
 
 	const updatedComment = await prisma.comment.update({
@@ -164,7 +169,7 @@ const deleteComment = async (
 	});
 
 	if (!comment) {
-		throw new Error("Comment not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Comment not found");
 	}
 
 	// Allow author, ADMIN, or MANAGER to delete comments
@@ -173,7 +178,10 @@ const deleteComment = async (
 		userRole !== "ADMIN" &&
 		userRole !== "MANAGER"
 	) {
-		throw new Error("Unauthorized to delete this comment");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"Unauthorized to delete this comment",
+		);
 	}
 
 	const deletedComment = await prisma.comment.update({

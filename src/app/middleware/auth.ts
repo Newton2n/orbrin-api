@@ -5,6 +5,10 @@ import { jwtUtils } from "../utils/jwt";
 import type { JwtPayload } from "jsonwebtoken";
 import config from "../config";
 import { prisma } from "../lib/prisma";
+import { AppError } from "../utils/app-error";
+import { StatusCodes } from "http-status-codes";
+
+
 
 const auth = (...requiredRoles: Role[]) => {
 	return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -16,7 +20,8 @@ const auth = (...requiredRoles: Role[]) => {
 				: req.headers.authorization;
 
 		if (!accessToken) {
-			throw new Error(
+			throw new AppError(
+				StatusCodes.UNAUTHORIZED,
 				"You are not logged in. Please log in to access this resource.",
 			);
 		}
@@ -28,7 +33,7 @@ const auth = (...requiredRoles: Role[]) => {
 		);
 
 		if (!verifyAccessToken.success) {
-			throw new Error(verifyAccessToken.error);
+			throw new AppError(StatusCodes.UNAUTHORIZED, "Invalid access token.");
 		}
 
 		const { id, email } = verifyAccessToken.data as JwtPayload;
@@ -46,12 +51,16 @@ const auth = (...requiredRoles: Role[]) => {
 		});
 
 		if (!user || user.deletedAt) {
-			throw new Error("User not found. Please log in again.");
+			throw new AppError(
+				StatusCodes.UNAUTHORIZED,
+				"User not found. Please log in again.",
+			);
 		}
 
 		// Optional: If you use user status
 		if (user.status !== "ACTIVE") {
-			throw new Error(
+			throw new AppError(
+				StatusCodes.UNAUTHORIZED,
 				"Your account has been suspended or inactive. Please contact support.",
 			);
 		}
@@ -59,7 +68,10 @@ const auth = (...requiredRoles: Role[]) => {
 		// 4. Ensure the user belongs to an organization (Single-org MVP rule)
 		const membership = user.memberships[0]; // Gets their primary organization membership
 		if (!membership) {
-			throw new Error("User does not belong to any organization.");
+			throw new AppError(
+				StatusCodes.FORBIDDEN,
+				"User does not belong to any organization.",
+			);
 		}
 
 		const userRole = membership.role as Role;
@@ -67,7 +79,8 @@ const auth = (...requiredRoles: Role[]) => {
 
 		// 5. Enforce RBAC Role Check
 		if (requiredRoles.length && !requiredRoles.includes(userRole)) {
-			throw new Error(
+			throw new AppError(
+				StatusCodes.FORBIDDEN,
 				"Forbidden. You don't have permission to access this resource.",
 			);
 		}

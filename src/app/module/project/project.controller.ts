@@ -5,14 +5,18 @@ import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import type { z } from "zod";
 import type { projectValidation } from "./project.schema";
+import { AppError } from "../../utils/app-error";
 
 const createProject = catchAsync(async (req, res) => {
 	if (!req.user?.organizationId) {
-		throw new Error("Organization ID is missing.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Organization ID is missing.");
 	}
 
 	if (!req.file) {
-		throw new Error("Project PDF document is required.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Project PDF document is required.",
+		);
 	}
 
 	const result = await projectService.createProject(
@@ -32,7 +36,10 @@ const getAllProjects = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const organizationId = req.user?.organizationId;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		const query = req.validatedQuery as z.infer<
 			typeof projectValidation.projectQuerySchema
@@ -54,7 +61,10 @@ const getProjectById = catchAsync(
 		const { projectId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		const result = await projectService.getProjectById(
 			organizationId,
@@ -74,7 +84,10 @@ const updateProject = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { projectId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		const result = await projectService.updateProject(
 			organizationId,
@@ -95,7 +108,10 @@ const deleteProject = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { projectId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		const result = await projectService.deleteProject(
 			organizationId,
@@ -116,7 +132,10 @@ const assignTeamToProject = catchAsync(
 		const { projectId } = req.params;
 		const { teamId } = req.body;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result = await projectService.assignTeamToProject(
@@ -138,7 +157,10 @@ const removeTeamFromProject = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { projectId, teamId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result = await projectService.removeTeamFromProject(
@@ -157,15 +179,15 @@ const removeTeamFromProject = catchAsync(
 
 const uploadProjectDocument = catchAsync(async (req, res) => {
 	if (!req.user?.organizationId) {
-		throw new Error("Organization ID is missing.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Organization ID is missing.");
 	}
 
 	if (!req.file) {
-		throw new Error("PDF document is required.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "PDF document is required.");
 	}
 
 	if (!req.params.projectId) {
-		throw new Error("Project ID is required.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Project ID is required.");
 	}
 
 	const result = await projectService.uploadProjectDocument(
@@ -187,11 +209,14 @@ const deleteProjectDocument = catchAsync(
 		const { projectId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!projectId) {
-			throw new Error("Project ID is required.");
+			throw new AppError(StatusCodes.BAD_REQUEST, "Project ID is required.");
 		}
 
 		await projectService.deleteProjectDocument(

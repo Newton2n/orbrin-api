@@ -14,6 +14,8 @@ import type {
 	TUpdateUserStatus,
 } from "./user.interface";
 import { cloudinaryService } from "../../services/cloudinary";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 
 const getMyProfile = async (userId: string) => {
 	const user = await prisma.user.findUnique({
@@ -53,7 +55,7 @@ const getMyProfile = async (userId: string) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	return user;
@@ -68,7 +70,7 @@ const updateMyProfile = async (userId: string, payload: TUpdateUserProfile) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	return prisma.user.update({
@@ -100,15 +102,21 @@ const changePassword = async (userId: string, payload: TChangePassword) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	if (user.authProvider !== "LOCAL") {
-		throw new Error("Password change is only available for local accounts.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Password change is only available for local accounts.",
+		);
 	}
 
 	if (!user.passwordHash) {
-		throw new Error("Password is not available for this account.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Password is not available for this account.",
+		);
 	}
 
 	const passwordMatches = await bcrypt.compare(
@@ -117,7 +125,10 @@ const changePassword = async (userId: string, payload: TChangePassword) => {
 	);
 
 	if (!passwordMatches) {
-		throw new Error("Current password is incorrect.");
+		throw new AppError(
+			StatusCodes.UNAUTHORIZED,
+			"Current password is incorrect.",
+		);
 	}
 
 	const hashedPassword = await bcrypt.hash(
@@ -181,11 +192,14 @@ const resetPassword = async (payload: TResetPassword) => {
 	});
 
 	if (!user) {
-		throw new Error("Invalid email or OTP.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid email or OTP.");
 	}
 
 	if (user.authProvider !== "LOCAL") {
-		throw new Error("Password reset is only available for local accounts.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Password reset is only available for local accounts.",
+		);
 	}
 
 	const hashedOtp = crypto
@@ -198,7 +212,7 @@ const resetPassword = async (payload: TResetPassword) => {
 	const storedOtp = await redis.get<string>(redisKey);
 
 	if (!storedOtp || storedOtp !== hashedOtp) {
-		throw new Error("Invalid or expired OTP.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP.");
 	}
 
 	const hashedPassword = await bcrypt.hash(
@@ -237,11 +251,14 @@ const updateUserStatus = async (
 	});
 
 	if (user?.status === payload.status) {
-		throw new Error(`User is already ${payload.status}.`);
+		throw new AppError(
+			StatusCodes.CONFLICT,
+			`User is already ${payload.status}.`,
+		);
 	}
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	return prisma.user.update({
@@ -276,15 +293,21 @@ const deleteMyAccount = async (userId: string) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	if (user.status === "INACTIVE") {
-		throw new Error("User account is already inactive.");
+		throw new AppError(
+			StatusCodes.CONFLICT,
+			"User account is already inactive.",
+		);
 	}
 
 	if (user.memberships[0].role === "ADMIN") {
-		throw new Error("Owner cannot delete their account.");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"Owner cannot delete their account.",
+		);
 	}
 
 	await prisma.user.update({
@@ -314,7 +337,7 @@ const updateProfileImage = async (
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	const uploadedImage = await cloudinaryService.uploadBuffer(file.buffer, {
@@ -369,11 +392,11 @@ const deleteProfileImage = async (userId: string) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
 	}
 
 	if (!user.profileImagePublicId) {
-		throw new Error("Profile picture not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Profile picture not found.");
 	}
 
 	await cloudinaryService.deleteAsset(user.profileImagePublicId, "image");

@@ -12,13 +12,7 @@ export const validate = (schema: BodyValidationSchema) => {
 		});
 
 		if (!result.success) {
-			res.status(400).json({
-				status: "error",
-				errors: result.error.issues.map((err) => ({
-					field: err.path.slice(1).join("."),
-					message: err.message,
-				})),
-			});
+			next(result.error);
 			return;
 		}
 
@@ -40,14 +34,7 @@ export const validateQuery = (schema: z.ZodType) => {
 		const result = schema.safeParse(req.query);
 
 		if (!result.success) {
-			res.status(400).json({
-				success: false,
-				message: "Validation failed for query parameters",
-				errors: result.error.issues.map((err) => ({
-					field: err.path.join("."),
-					message: err.message,
-				})),
-			});
+			next(result.error);
 			return;
 		}
 

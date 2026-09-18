@@ -4,6 +4,8 @@ import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
 import type { organizationMemberQuerySchema } from "./organization.schema";
 import { cloudinaryService } from "../../services/cloudinary";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 
 import type {
 	TUpdateMemberRole,
@@ -60,7 +62,7 @@ const getMyOrganization = async (organizationId: string) => {
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	return organization;
@@ -78,7 +80,7 @@ const updateOrganization = async (
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	if (payload.slug && payload.slug !== organization.slug) {
@@ -89,7 +91,10 @@ const updateOrganization = async (
 		});
 
 		if (existingOrganization) {
-			throw new Error("An organization with this slug already exists.");
+			throw new AppError(
+				StatusCodes.CONFLICT,
+				"An organization with this slug already exists.",
+			);
 		}
 	}
 
@@ -124,7 +129,7 @@ const deleteOrganization = async (organizationId: string) => {
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	await prisma.organization.update({
@@ -224,7 +229,7 @@ const getOrganizationMemberById = async (
 	});
 
 	if (!membership) {
-		throw new Error("Organization member not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization member not found.");
 	}
 
 	return membership;
@@ -243,15 +248,21 @@ const updateMemberRole = async (
 	});
 
 	if (!membership) {
-		throw new Error("Organization member not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization member not found.");
 	}
 
 	if (membership.role === "ADMIN") {
-		throw new Error("Cannot update the role of an ADMIN member.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Cannot update the role of an ADMIN member.",
+		);
 	}
 
 	if (payload.role === "ADMIN") {
-		throw new Error("Cannot assign ADMIN role to a member.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Cannot assign ADMIN role to a member.",
+		);
 	}
 
 	return prisma.organizationMembership.update({
@@ -289,11 +300,14 @@ const updateMemberStatus = async (
 	});
 
 	if (!membership) {
-		throw new Error("Organization member not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization member not found.");
 	}
 
 	if (membership?.role === "ADMIN" && payload.status !== "ACTIVE") {
-		throw new Error("Cannot change the status of an Admin.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Cannot change the status of an Admin.",
+		);
 	}
 
 	return prisma.organizationMembership.update({
@@ -328,11 +342,14 @@ const removeMember = async (organizationId: string, memberId: string) => {
 	});
 
 	if (!membership) {
-		throw new Error("Organization member not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization member not found.");
 	}
 
 	if (membership.role === "ADMIN") {
-		throw new Error("Organization admin cannot be removed directly.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Organization admin cannot be removed directly.",
+		);
 	}
 
 	await prisma.organizationMembership.delete({
@@ -354,11 +371,17 @@ const leaveOrganization = async (organizationId: string, userId: string) => {
 	});
 
 	if (!membership) {
-		throw new Error("You are not a member of this organization.");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"You are not a member of this organization.",
+		);
 	}
 
 	if (membership.role === "ADMIN") {
-		throw new Error("Organization admin cannot leave the organization.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Organization admin cannot leave the organization.",
+		);
 	}
 
 	await prisma.organizationMembership.delete({
@@ -384,7 +407,7 @@ const updateOrganizationLogo = async (
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	// 1. Upload new logo
@@ -448,11 +471,11 @@ const deleteOrganizationLogo = async (organizationId: string) => {
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found.");
 	}
 
 	if (!organization.logoPublicId) {
-		throw new Error("Organization logo not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization logo not found.");
 	}
 
 	await cloudinaryService.deleteAsset(organization.logoPublicId, "image");

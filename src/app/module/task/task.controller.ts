@@ -6,6 +6,7 @@ import { StatusCodes } from "http-status-codes";
 import type { Role } from "../../../../prisma/generated/prisma/client";
 import type { z } from "zod";
 import type { taskValidation } from "./task.schema";
+import { AppError } from "../../utils/app-error";
 
 const createTask = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -14,13 +15,22 @@ const createTask = catchAsync(
 		const { projectId } = req.params;
 
 		if (!projectId) {
-			throw new Error("Project ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Project ID is missing in the request parameters.",
+			);
 		}
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!userId) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		const result = await taskService.createTask(
@@ -43,7 +53,10 @@ const getTasksByProject = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { projectId } = req.params;
 		if (!projectId) {
-			throw new Error("Project ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Project ID is missing in the request parameters.",
+			);
 		}
 		const query = req.validatedQuery as z.infer<
 			typeof taskValidation.taskQuerySchema
@@ -68,10 +81,16 @@ const getTaskById = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { taskId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!taskId) {
-			throw new Error("Task ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
 		}
 		const result = await taskService.getTaskById(
 			organizationId,
@@ -94,11 +113,17 @@ const updateTask = catchAsync(
 		const userId = user?.id;
 		const role = user?.role;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!taskId) {
-			throw new Error("Task ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await taskService.updateTask(
@@ -122,11 +147,17 @@ const deleteTask = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { taskId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!taskId) {
-			throw new Error("Task ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
 		}
 		const result = await taskService.deleteTask(
 			organizationId,

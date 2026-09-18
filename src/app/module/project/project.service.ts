@@ -1,5 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { cloudinaryService } from "../../services/cloudinary";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 import type { Prisma } from "../../../../prisma/generated/prisma/client";
 import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
@@ -16,11 +18,14 @@ const createProject = async (
 	file: Express.Multer.File,
 ) => {
 	if (!file) {
-		throw new Error("Project document is required.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Project document is required.",
+		);
 	}
 
 	if (file.mimetype !== "application/pdf") {
-		throw new Error("Only PDF files are allowed.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Only PDF files are allowed.");
 	}
 
 	const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
@@ -111,7 +116,7 @@ const getProjectById = async (organizationId: string, projectId: string) => {
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	return project;
@@ -132,7 +137,7 @@ const updateProject = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	const updatedProject = await prisma.project.update({
@@ -156,7 +161,7 @@ const deleteProject = async (organizationId: string, projectId: string) => {
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	const updatedProject = await prisma.project.update({
@@ -187,7 +192,7 @@ const assignTeamToProject = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	// Verify team belongs to the tenant.
@@ -200,7 +205,7 @@ const assignTeamToProject = async (
 	});
 
 	if (!team) {
-		throw new Error("Team not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found.");
 	}
 
 	// Check if the team is already assigned.
@@ -212,7 +217,10 @@ const assignTeamToProject = async (
 	});
 
 	if (existingAssignment) {
-		throw new Error("Team is already assigned to this project.");
+		throw new AppError(
+			StatusCodes.CONFLICT,
+			"Team is already assigned to this project.",
+		);
 	}
 
 	const assignment = await prisma.projectTeam.create({
@@ -241,7 +249,7 @@ const removeTeamFromProject = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	// Verify team belongs to the same tenant.
@@ -254,7 +262,7 @@ const removeTeamFromProject = async (
 	});
 
 	if (!team) {
-		throw new Error("Team not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found.");
 	}
 
 	const deletedAssignment = await prisma.projectTeam.delete({
@@ -289,15 +297,18 @@ const uploadProjectDocument = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	if (!file) {
-		throw new Error("Project document is required.");
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Project document is required.",
+		);
 	}
 
 	if (file.mimetype !== "application/pdf") {
-		throw new Error("Only PDF files are allowed.");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Only PDF files are allowed.");
 	}
 
 	// Upload new PDF first
@@ -378,11 +389,11 @@ const deleteProjectDocument = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
 	if (!project.documentPublicId) {
-		throw new Error("Project document not found.");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project document not found.");
 	}
 
 	// Delete the PDF from Cloudinary as a RAW resource.

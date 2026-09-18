@@ -3,6 +3,7 @@ import catchAsync from "../../utils/catch-async";
 import { sprintService } from "./sprint.service";
 import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
+import { AppError } from "../../utils/app-error";
 import type { z } from "zod";
 import type { sprintValidation } from "./sprint.schema";
 
@@ -13,7 +14,10 @@ const createSprint = catchAsync(
 		const { projectId } = req.params;
 
 		if (!projectId) {
-			throw new Error("Project ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Project ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await sprintService.createSprint(
@@ -37,7 +41,10 @@ const getSprintsByProject = catchAsync(
 		const { projectId } = req.params;
 
 		if (!projectId) {
-			throw new Error("Project ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Project ID is missing in the request parameters.",
+			);
 		}
 
 		const query = req.validatedQuery as z.infer<
@@ -65,10 +72,16 @@ const getSprintById = catchAsync(
 		const { sprintId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!sprintId) {
-			throw new Error("Sprint ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Sprint ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await sprintService.getSprintById(
@@ -91,10 +104,16 @@ const updateSprint = catchAsync(
 		const { sprintId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!sprintId) {
-			throw new Error("Sprint ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Sprint ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await sprintService.updateSprint(
@@ -118,10 +137,16 @@ const deleteSprint = catchAsync(
 		const { sprintId } = req.params;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!sprintId) {
-			throw new Error("Sprint ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Sprint ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await sprintService.deleteSprint(

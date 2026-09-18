@@ -5,13 +5,17 @@ import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import type { z } from "zod";
 import type { teamValidation } from "./team.schema";
+import { AppError } from "../../utils/app-error";
 
 const createTeam = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		const result = await teamService.createTeam(organizationId, req.body);
 
@@ -28,7 +32,10 @@ const getAllTeams = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const query = req.validatedQuery as z.infer<
@@ -50,10 +57,16 @@ const getTeamById = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { teamId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!teamId) {
-			throw new Error("Team ID is required to retrieve a team.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Team ID is required to retrieve a team.",
+			);
 		}
 
 		const result = await teamService.getTeamById(
@@ -74,10 +87,16 @@ const updateTeam = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const { teamId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 		const result = await teamService.updateTeam(
 			organizationId,
@@ -96,16 +115,25 @@ const updateTeam = catchAsync(
 const deleteTeam = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user?.id) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 		const organizationId = req.user?.organizationId;
 		const { teamId } = req.params;
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		if (!teamId) {
-			throw new Error("Team ID is required to delete a team.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Team ID is required to delete a team.",
+			);
 		}
 		const result = await teamService.deleteTeam(
 			organizationId,

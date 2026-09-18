@@ -5,6 +5,7 @@ import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import type { z } from "zod";
 import type { commentValidation } from "./comment.schema";
+import { AppError } from "../../utils/app-error";
 
 const createComment = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -13,7 +14,10 @@ const createComment = catchAsync(
 		const { taskId } = req.params;
 
 		if (!taskId) {
-			throw new Error("Task ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await commentService.createComment(
@@ -37,7 +41,10 @@ const getCommentsByTask = catchAsync(
 		const { taskId } = req.params;
 
 		if (!taskId) {
-			throw new Error("Task ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
 		}
 
 		const query = req.validatedQuery as z.infer<
@@ -65,7 +72,10 @@ const updateComment = catchAsync(
 		const { commentId } = req.params;
 
 		if (!commentId) {
-			throw new Error("Comment ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Comment ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await commentService.updateComment(
@@ -91,7 +101,10 @@ const deleteComment = catchAsync(
 		const { commentId } = req.params;
 
 		if (!commentId) {
-			throw new Error("Comment ID is missing in the request parameters.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Comment ID is missing in the request parameters.",
+			);
 		}
 
 		const result = await commentService.deleteComment(

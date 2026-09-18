@@ -13,6 +13,8 @@ import {
 	handleInvoicePaymentSucceeded,
 	handlePaymentSuccess,
 } from "../../utils/stripe-event";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 
 const createCheckoutSession = async (
 	organizationId: string,
@@ -30,7 +32,7 @@ const createCheckoutSession = async (
 	});
 
 	if (!organization) {
-		throw new Error("Organization not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Organization not found");
 	}
 
 	const user = await prisma.user.findUnique({
@@ -39,11 +41,14 @@ const createCheckoutSession = async (
 	});
 
 	if (!user) {
-		throw new Error("User not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "User not found");
 	}
 
 	if (user.memberships[0].role !== "ADMIN") {
-		throw new Error("Only ADMIN users can create a subscription.");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"Only ADMIN users can create a subscription.",
+		);
 	}
 
 	const subscription = organization.subscriptions;
@@ -51,7 +56,8 @@ const createCheckoutSession = async (
 	const subcriptionEndDate = subscription?.currentPeriodEnd;
 
 	if (subcriptionEndDate && subcriptionEndDate > today) {
-		throw new Error(
+		throw new AppError(
+			StatusCodes.CONFLICT,
 			"Cannot create a new subscription while the current subscription is still active.",
 		);
 	}
@@ -151,7 +157,10 @@ const getOrganizationSubscriptionHistory = async (
 	});
 
 	if (!subscription) {
-		throw new Error("No subscription history found for the organization");
+		throw new AppError(
+			StatusCodes.NOT_FOUND,
+			"No subscription history found for the organization",
+		);
 	}
 
 	const { page, limit, search, sortBy, sortOrder, status } = query;

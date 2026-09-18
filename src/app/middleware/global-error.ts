@@ -1,17 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { Prisma } from "../../../prisma/generated/prisma/client";
-import { ZodError } from "zod";
 import { StatusCodes } from "http-status-codes";
-import config from "../config";
-export class AppError extends Error {
-	constructor(
-		public statusCode: number,
-		message: string,
-	) {
-		super(message);
-		this.name = "AppError";
-	}
-}
+import { ZodError } from "zod";
+import { AppError } from "../utils/app-error";
 
 type TErrorDetail = {
 	field: string;
@@ -20,174 +11,71 @@ type TErrorDetail = {
 
 const globalError = (
 	err: unknown,
-	req: Request,
+	_req: Request,
 	res: Response,
 	_next: NextFunction,
 ) => {
 	let statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-	let message = "Something went wrong";
-	let errorDetails: TErrorDetail[] = [];
+	let message = "Internal server error.";
+	let errors: TErrorDetail[] | undefined;
 
-	if (config.node_env === "development") {
-		console.error("Error:", err);
+	if (!(err instanceof AppError)) {
+		console.error("Unexpected error:", err);
 	}
-	// Custom App Error
+
 	if (err instanceof AppError) {
 		statusCode = err.statusCode;
 		message = err.message;
-
-		errorDetails.push({
-			field: "general",
-			message: err.message,
-		});
-	}
-
-	// Prisma Known Errors
-	else if (err instanceof Prisma.PrismaClientKnownRequestError) {
+	} else if (err instanceof ZodError) {
+		statusCode = StatusCodes.BAD_REQUEST;
+		message = "Validation failed.";
+		errors = err.issues.map((issue) => ({
+			field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join(
+				".",
+			),
+			message: issue.message,
+		}));
+	} else if (err instanceof Prisma.PrismaClientKnownRequestError) {
 		switch (err.code) {
-			case "P2002": {
+			case "P2002":
 				statusCode = StatusCodes.CONFLICT;
-				message = "Duplicate value found.";
-
-				const field = Array.isArray(err.meta?.target)
-					? err.meta.target.join(", ")
-					: String(err.meta?.target);
-
-				errorDetails.push({
-					field,
-					message: `${field} already exists.`,
-				});
-
+				message = "A resource with the provided value already exists.";
 				break;
-			}
-
 			case "P2025":
 				statusCode = StatusCodes.NOT_FOUND;
 				message = "Resource not found.";
-
-				errorDetails.push({
-					field: "resource",
-					message: "The requested resource does not exist.",
-				});
 				break;
-
 			case "P2003":
-				statusCode = StatusCodes.BAD_REQUEST;
-				message = "Invalid reference.";
-
-				errorDetails.push({
-					field: "relation",
-					message: "Referenced record does not exist.",
-				});
-				break;
-
 			case "P2014":
 				statusCode = StatusCodes.BAD_REQUEST;
-				message = "Relation constraint failed.";
-
-				errorDetails.push({
-					field: "relation",
-					message: "Operation violates required relation.",
-				});
+				message = "The requested operation is invalid.";
 				break;
-
 			default:
-				statusCode = StatusCodes.BAD_REQUEST;
 				message = "Database request failed.";
-
-				errorDetails.push({
-					field: "database",
-					message: err.message,
-				});
 		}
-	}
-
-	// Prisma Validation Error
-	else if (err instanceof Prisma.PrismaClientValidationError) {
+	} else if (err instanceof Prisma.PrismaClientValidationError) {
 		statusCode = StatusCodes.BAD_REQUEST;
-		message = "Database validation failed.";
-
-		errorDetails.push({
-			field: "database",
-			message: err.message,
-		});
-	}
-
-	// Prisma Connection Error
-	else if (err instanceof Prisma.PrismaClientInitializationError) {
-		statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-		message = "Database connection failed.";
-
-		errorDetails.push({
-			field: "database",
-			message: err.message,
-		});
-	}
-
-	// Prisma Engine Crash
-	else if (err instanceof Prisma.PrismaClientRustPanicError) {
-		statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-		message = "Database engine crashed.";
-
-		errorDetails.push({
-			field: "database",
-			message: "Unexpected database engine error.",
-		});
-	}
-
-	// Zod Validation Error
-	else if (err instanceof ZodError) {
-		statusCode = StatusCodes.BAD_REQUEST;
-		message = "Validation Error";
-
-		errorDetails = err.issues.map((issue) => ({
-			field: issue.path.join("."),
-			message: issue.message,
-		}));
-	}
-
-	// JWT Invalid
-	else if (err instanceof Error && err.name === "JsonWebTokenError") {
-		statusCode = StatusCodes.UNAUTHORIZED;
-		message = "Invalid access token.";
-
-		errorDetails.push({
-			field: "token",
-			message: "The provided access token is invalid.",
-		});
-	}
-
-	// JWT Expired
-	else if (err instanceof Error && err.name === "TokenExpiredError") {
+		message = "The request could not be processed.";
+	} else if (err instanceof Prisma.PrismaClientInitializationError) {
+		statusCode = StatusCodes.SERVICE_UNAVAILABLE;
+		message = "The service is temporarily unavailable.";
+	} else if (err instanceof Prisma.PrismaClientRustPanicError) {
+		message = "Internal server error.";
+	} else if (err instanceof Error && err.name === "TokenExpiredError") {
 		statusCode = StatusCodes.UNAUTHORIZED;
 		message = "Access token expired.";
-
-		errorDetails.push({
-			field: "token",
-			message: "Please login again.",
-		});
-	}
-
-	// Unknown Error
-	else if (err instanceof Error) {
-		message = err.message;
-
-		errorDetails.push({
-			field: "general",
-			message: err.message,
-		});
-	}
-
-	// Development Log
-	if (process.env.NODE_ENV !== "production") {
+	} else if (err instanceof Error && err.name === "JsonWebTokenError") {
+		statusCode = StatusCodes.UNAUTHORIZED;
+		message = "Invalid access token.";
 	}
 
 	return res.status(statusCode).json({
 		success: false,
 		statusCode,
 		message,
-		errorDetails,
+		...(errors ? { errors } : {}),
 	});
 };
 
+export { AppError };
 export default globalError;

@@ -5,6 +5,7 @@ import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import type { z } from "zod";
 import type { subscriptionHistoryQuerySchema } from "./subscripton.schema";
+import { AppError } from "../../utils/app-error";
 
 // Create Stripe Checkout Session
 const createCheckoutSession = catchAsync(
@@ -12,11 +13,17 @@ const createCheckoutSession = catchAsync(
 		const organizationId = req.user?.organizationId;
 		const userId = req.user?.id;
 		if (!userId) {
-			throw new Error("User ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"User ID is missing in the request context.",
+			);
 		}
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result = await subscriptionService.createCheckoutSession(
@@ -38,7 +45,10 @@ const getSubscriptionHistory = catchAsync(
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			throw new Error("Organization ID is missing in the request context.");
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Organization ID is missing in the request context.",
+			);
 		}
 
 		const result = await subscriptionService.getOrganizationSubscriptionHistory(

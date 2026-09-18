@@ -14,13 +14,12 @@ import express from "express";
 import cors from "cors";
 
 // src/app/middleware/not-found.ts
+import { StatusCodes } from "http-status-codes";
 var notFound = (req, res, next) => {
-  res.status(404).json({
+  res.status(StatusCodes.NOT_FOUND).json({
     success: false,
-    status: 404,
-    error: "Not Found",
-    requestType: req.method,
-    message: `The requested URL ${req.originalUrl} was not found on this server.`
+    statusCode: StatusCodes.NOT_FOUND,
+    message: "The requested resource was not found."
   });
 };
 var not_found_default = notFound;
@@ -641,8 +640,82 @@ globalThis["__dirname"] = path.dirname(fileURLToPath(import.meta.url));
 var PrismaClient = getPrismaClientClass();
 
 // src/app/middleware/global-error.ts
+import { StatusCodes as StatusCodes2 } from "http-status-codes";
 import { ZodError } from "zod";
-import { StatusCodes } from "http-status-codes";
+
+// src/app/utils/app-error.ts
+var AppError = class extends Error {
+  statusCode;
+  isOperational = true;
+  constructor(statusCode, message) {
+    super(message);
+    this.name = "AppError";
+    this.statusCode = statusCode;
+    Error.captureStackTrace(this, this.constructor);
+  }
+};
+
+// src/app/middleware/global-error.ts
+var globalError = (err, _req, res, _next) => {
+  let statusCode = StatusCodes2.INTERNAL_SERVER_ERROR;
+  let message = "Internal server error.";
+  let errors;
+  if (!(err instanceof AppError)) {
+    console.error("Unexpected error:", err);
+  }
+  if (err instanceof AppError) {
+    statusCode = err.statusCode;
+    message = err.message;
+  } else if (err instanceof ZodError) {
+    statusCode = StatusCodes2.BAD_REQUEST;
+    message = "Validation failed.";
+    errors = err.issues.map((issue) => ({
+      field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join(
+        "."
+      ),
+      message: issue.message
+    }));
+  } else if (err instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
+    switch (err.code) {
+      case "P2002":
+        statusCode = StatusCodes2.CONFLICT;
+        message = "A resource with the provided value already exists.";
+        break;
+      case "P2025":
+        statusCode = StatusCodes2.NOT_FOUND;
+        message = "Resource not found.";
+        break;
+      case "P2003":
+      case "P2014":
+        statusCode = StatusCodes2.BAD_REQUEST;
+        message = "The requested operation is invalid.";
+        break;
+      default:
+        message = "Database request failed.";
+    }
+  } else if (err instanceof prismaNamespace_exports.PrismaClientValidationError) {
+    statusCode = StatusCodes2.BAD_REQUEST;
+    message = "The request could not be processed.";
+  } else if (err instanceof prismaNamespace_exports.PrismaClientInitializationError) {
+    statusCode = StatusCodes2.SERVICE_UNAVAILABLE;
+    message = "The service is temporarily unavailable.";
+  } else if (err instanceof prismaNamespace_exports.PrismaClientRustPanicError) {
+    message = "Internal server error.";
+  } else if (err instanceof Error && err.name === "TokenExpiredError") {
+    statusCode = StatusCodes2.UNAUTHORIZED;
+    message = "Access token expired.";
+  } else if (err instanceof Error && err.name === "JsonWebTokenError") {
+    statusCode = StatusCodes2.UNAUTHORIZED;
+    message = "Invalid access token.";
+  }
+  return res.status(statusCode).json({
+    success: false,
+    statusCode,
+    message,
+    ...errors ? { errors } : {}
+  });
+};
+var global_error_default = globalError;
 
 // src/app/config/index.ts
 import path2 from "path";
@@ -677,133 +750,6 @@ var config_default = {
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET
 };
 
-// src/app/middleware/global-error.ts
-var AppError = class extends Error {
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = "AppError";
-  }
-  statusCode;
-};
-var globalError = (err, req, res, _next) => {
-  let statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-  let message = "Something went wrong";
-  let errorDetails = [];
-  if (config_default.node_env === "development") {
-    console.error("Error:", err);
-  }
-  if (err instanceof AppError) {
-    statusCode = err.statusCode;
-    message = err.message;
-    errorDetails.push({
-      field: "general",
-      message: err.message
-    });
-  } else if (err instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
-    switch (err.code) {
-      case "P2002": {
-        statusCode = StatusCodes.CONFLICT;
-        message = "Duplicate value found.";
-        const field = Array.isArray(err.meta?.target) ? err.meta.target.join(", ") : String(err.meta?.target);
-        errorDetails.push({
-          field,
-          message: `${field} already exists.`
-        });
-        break;
-      }
-      case "P2025":
-        statusCode = StatusCodes.NOT_FOUND;
-        message = "Resource not found.";
-        errorDetails.push({
-          field: "resource",
-          message: "The requested resource does not exist."
-        });
-        break;
-      case "P2003":
-        statusCode = StatusCodes.BAD_REQUEST;
-        message = "Invalid reference.";
-        errorDetails.push({
-          field: "relation",
-          message: "Referenced record does not exist."
-        });
-        break;
-      case "P2014":
-        statusCode = StatusCodes.BAD_REQUEST;
-        message = "Relation constraint failed.";
-        errorDetails.push({
-          field: "relation",
-          message: "Operation violates required relation."
-        });
-        break;
-      default:
-        statusCode = StatusCodes.BAD_REQUEST;
-        message = "Database request failed.";
-        errorDetails.push({
-          field: "database",
-          message: err.message
-        });
-    }
-  } else if (err instanceof prismaNamespace_exports.PrismaClientValidationError) {
-    statusCode = StatusCodes.BAD_REQUEST;
-    message = "Database validation failed.";
-    errorDetails.push({
-      field: "database",
-      message: err.message
-    });
-  } else if (err instanceof prismaNamespace_exports.PrismaClientInitializationError) {
-    statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-    message = "Database connection failed.";
-    errorDetails.push({
-      field: "database",
-      message: err.message
-    });
-  } else if (err instanceof prismaNamespace_exports.PrismaClientRustPanicError) {
-    statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-    message = "Database engine crashed.";
-    errorDetails.push({
-      field: "database",
-      message: "Unexpected database engine error."
-    });
-  } else if (err instanceof ZodError) {
-    statusCode = StatusCodes.BAD_REQUEST;
-    message = "Validation Error";
-    errorDetails = err.issues.map((issue) => ({
-      field: issue.path.join("."),
-      message: issue.message
-    }));
-  } else if (err instanceof Error && err.name === "JsonWebTokenError") {
-    statusCode = StatusCodes.UNAUTHORIZED;
-    message = "Invalid access token.";
-    errorDetails.push({
-      field: "token",
-      message: "The provided access token is invalid."
-    });
-  } else if (err instanceof Error && err.name === "TokenExpiredError") {
-    statusCode = StatusCodes.UNAUTHORIZED;
-    message = "Access token expired.";
-    errorDetails.push({
-      field: "token",
-      message: "Please login again."
-    });
-  } else if (err instanceof Error) {
-    message = err.message;
-    errorDetails.push({
-      field: "general",
-      message: err.message
-    });
-  }
-  if (process.env.NODE_ENV !== "production") {
-  }
-  return res.status(statusCode).json({
-    success: false,
-    statusCode,
-    message,
-    errorDetails
-  });
-};
-var global_error_default = globalError;
-
 // src/app/middleware/rate-limiter.ts
 import { Ratelimit } from "@upstash/ratelimit";
 
@@ -815,6 +761,7 @@ var redis = new Redis({
 });
 
 // src/app/middleware/rate-limiter.ts
+import { StatusCodes as StatusCodes3 } from "http-status-codes";
 var ratelimit = new Ratelimit({
   redis,
   // Maximum 25 requests per IP per 1 minute
@@ -840,9 +787,10 @@ var rateLimiter = async (req, res, next) => {
     res.setHeader("RateLimit-Limit", limit);
     res.setHeader("RateLimit-Reset", reset);
     if (!success) {
-      res.status(429).json({
+      res.status(StatusCodes3.TOO_MANY_REQUESTS).json({
         success: false,
-        message: "Rate limit exceeded",
+        statusCode: StatusCodes3.TOO_MANY_REQUESTS,
+        message: "Rate limit exceeded.",
         errors: [
           {
             message: "Too many requests. Please try again later.",
@@ -912,6 +860,7 @@ var jwtUtils = { createToken, verifyToken };
 
 // src/app/lib/google.ts
 import { OAuth2Client } from "google-auth-library";
+import { StatusCodes as StatusCodes4 } from "http-status-codes";
 var client = new OAuth2Client(config_default.google_client_id);
 var verifyGoogleToken = async (idToken) => {
   try {
@@ -922,17 +871,93 @@ var verifyGoogleToken = async (idToken) => {
     return ticket.getPayload();
   } catch (error) {
     console.error("Error verifying Google token:", error);
-    throw new Error("Invalid Google token");
+    throw new AppError(StatusCodes4.UNAUTHORIZED, "Invalid Google token");
   }
 };
 
+// src/app/services/mail/index.ts
+import ejs from "ejs";
+import path3 from "path";
+import nodemailer from "nodemailer";
+var transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: config_default.smtp_user,
+    pass: config_default.smtp_password
+  }
+});
+var renderTemplate = async (templateName, data) => {
+  const templatePath = path3.join(
+    process.cwd(),
+    "src",
+    "app",
+    "services",
+    "mail",
+    "templates",
+    templateName
+  );
+  return ejs.renderFile(templatePath, data);
+};
+var sendEmail = async ({
+  to,
+  subject,
+  html
+}) => {
+  await transporter.sendMail({
+    from: `"Orbrin" <${config_default.smtp_user}>`,
+    to,
+    subject,
+    html
+  });
+};
+var sendPasswordResetOtpEmail = async ({
+  to,
+  fullName,
+  otp
+}) => {
+  const html = await renderTemplate("reset-password.ejs", {
+    fullName,
+    otp
+  });
+  await sendEmail({
+    to,
+    subject: "Your Orbrin password reset code",
+    html
+  });
+};
+var sendEmailVerificationOtpEmail = async ({
+  to,
+  fullName,
+  otp
+}) => {
+  const html = await renderTemplate("verify-email.ejs", {
+    fullName,
+    otp
+  });
+  await sendEmail({
+    to,
+    subject: "Verify your Orbrin email address",
+    html
+  });
+};
+var mailService = {
+  sendEmail,
+  sendPasswordResetOtpEmail,
+  sendEmailVerificationOtpEmail
+};
+
 // src/app/module/auth/auth.service.ts
+import crypto2 from "crypto";
+import { StatusCodes as StatusCodes5 } from "http-status-codes";
 var registerOrgOwner = async (payload) => {
   const existingUser = await prisma.user.findUnique({
     where: { email: payload.email }
   });
   if (existingUser) {
-    throw new Error("Organization owner with this email already exists.");
+    throw new AppError(
+      StatusCodes5.CONFLICT,
+      "Organization owner with this email already exists."
+    );
   }
   const hashedPassword = await bcrypt.hash(
     payload.password,
@@ -981,7 +1006,7 @@ var registerMember = async (payload) => {
     where: { id: payload.organizationId }
   });
   if (!organization || organization.deletedAt) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes5.NOT_FOUND, "Organization not found.");
   }
   const hashedPassword = await bcrypt.hash(
     payload.password,
@@ -1023,24 +1048,33 @@ var login = async (payload) => {
     }
   });
   if (!user || user.deletedAt) {
-    throw new Error("Invalid email or password");
+    throw new AppError(StatusCodes5.UNAUTHORIZED, "Invalid email or password");
   }
   if (!user.passwordHash && user.authProvider === "GOOGLE") {
-    throw new Error("Please login using Google Sign-In");
+    throw new AppError(
+      StatusCodes5.UNAUTHORIZED,
+      "Please login using Google Sign-In"
+    );
   }
   const isPasswordValid = await bcrypt.compare(
     payload.password,
     user?.passwordHash
   );
   if (!isPasswordValid) {
-    throw new Error("Invalid email or password");
+    throw new AppError(StatusCodes5.UNAUTHORIZED, "Invalid email or password");
   }
   if (user.status !== "ACTIVE") {
-    throw new Error("Account is inactive or blocked.");
+    throw new AppError(
+      StatusCodes5.UNAUTHORIZED,
+      "Account is inactive or blocked."
+    );
   }
   const membership = user.memberships[0];
   if (!membership) {
-    throw new Error("User does not belong to any organization.");
+    throw new AppError(
+      StatusCodes5.FORBIDDEN,
+      "User does not belong to any organization."
+    );
   }
   const jwtPayload = {
     id: user.id,
@@ -1092,7 +1126,7 @@ var getMe = async (userId) => {
     }
   });
   if (!user || user.deletedAt) {
-    throw new Error("User not found");
+    throw new AppError(StatusCodes5.NOT_FOUND, "User not found");
   }
   return user;
 };
@@ -1102,7 +1136,7 @@ var refreshToken = async (incomingRefreshToken) => {
     config_default.jwt_refresh_secret
   );
   if (!verifiedToken.success) {
-    throw new Error("Invalid refresh token");
+    throw new AppError(StatusCodes5.UNAUTHORIZED, "Invalid refresh token");
   }
   const { id } = verifiedToken.data;
   const user = await prisma.user.findUnique({
@@ -1112,11 +1146,14 @@ var refreshToken = async (incomingRefreshToken) => {
     }
   });
   if (!user || user.deletedAt || user.status !== "ACTIVE") {
-    throw new Error("User not found or inactive");
+    throw new AppError(StatusCodes5.UNAUTHORIZED, "User not found or inactive");
   }
   const membership = user.memberships[0];
   if (!membership) {
-    throw new Error("User does not belong to an organization");
+    throw new AppError(
+      StatusCodes5.FORBIDDEN,
+      "User does not belong to an organization"
+    );
   }
   const jwtPayload = {
     id: user.id,
@@ -1139,7 +1176,7 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
   const verifyResult = await verifyGoogleToken(idToken);
   const payload = verifyResult;
   if (!payload || !payload.email) {
-    throw new Error("Invalid Google token");
+    throw new AppError(StatusCodes5.UNAUTHORIZED, "Invalid Google token");
   }
   const { sub: providerId, email, name: fullName } = payload;
   let user = await prisma.user.findUnique({
@@ -1154,7 +1191,8 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
     }
   });
   if (user?.memberships[0].role === "ADMIN") {
-    throw new Error(
+    throw new AppError(
+      StatusCodes5.FORBIDDEN,
       "Organization owner cannot login via Google. Please use your email and password to login."
     );
   }
@@ -1179,13 +1217,16 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
     }
   } else {
     if (!defaultOrganizationId) {
-      throw new Error("Organization ID is required for new Google signup.");
+      throw new AppError(
+        StatusCodes5.BAD_REQUEST,
+        "Organization ID is required for new Google signup."
+      );
     }
     const organization = await prisma.organization.findUnique({
       where: { id: defaultOrganizationId, deletedAt: null }
     });
     if (!organization) {
-      throw new Error("Organization not found");
+      throw new AppError(StatusCodes5.NOT_FOUND, "Organization not found");
     }
     user = await prisma.user.create({
       data: {
@@ -1211,7 +1252,10 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
     });
   }
   if (!user) {
-    throw new Error("User creation or retrieval failed.");
+    throw new AppError(
+      StatusCodes5.INTERNAL_SERVER_ERROR,
+      "User creation or retrieval failed."
+    );
   }
   const jwtPayload = {
     id: user.id,
@@ -1236,13 +1280,83 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
     jwtPayload
   };
 };
+var sendVerificationEmail = async (payload) => {
+  const email = payload.email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+      deletedAt: null
+    }
+  });
+  if (!user) {
+    return;
+  }
+  if (user.emailVerified) {
+    return;
+  }
+  const otp = crypto2.randomInt(1e5, 1e6).toString();
+  const hashedOtp = crypto2.createHash("sha256").update(otp).digest("hex");
+  const VERIFY_EMAIL_OTP_EXPIRY = 60 * 5;
+  const redisKey = `orbrin:email-verification-otp:${user.id}`;
+  await redis.set(redisKey, hashedOtp, {
+    ex: VERIFY_EMAIL_OTP_EXPIRY
+  });
+  await mailService.sendEmailVerificationOtpEmail({
+    to: user.email,
+    fullName: user.fullName,
+    otp
+  });
+};
+var verifyEmail = async (payload) => {
+  const email = payload.email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+      deletedAt: null
+    }
+  });
+  if (!user) {
+    throw new AppError(StatusCodes5.BAD_REQUEST, "Invalid email or OTP.");
+  }
+  if (user.emailVerified) {
+    throw new AppError(StatusCodes5.BAD_REQUEST, "Email is already verified.");
+  }
+  const hashedOtp = crypto2.createHash("sha256").update(payload.otp).digest("hex");
+  const redisKey = `orbrin:email-verification-otp:${user.id}`;
+  const storedOtp = await redis.get(redisKey);
+  if (!storedOtp || storedOtp !== hashedOtp) {
+    throw new AppError(StatusCodes5.BAD_REQUEST, "Invalid or expired OTP.");
+  }
+  const updatedUser = await prisma.user.update({
+    where: {
+      id: user.id
+    },
+    data: {
+      emailVerified: true
+    },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      emailVerified: true,
+      status: true,
+      authProvider: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  });
+  await redis.del(redisKey);
+  return updatedUser;
+};
 var authService = {
   registerOrgOwner,
   registerMember,
   login,
   getMe,
   refreshToken,
-  googleLogin
+  googleLogin,
+  sendVerificationEmail,
+  verifyEmail
 };
 
 // src/app/utils/response.ts
@@ -1257,12 +1371,12 @@ var sendSuccessResponse = (res, data) => {
 };
 
 // src/app/module/auth/auth.controller.ts
-import { StatusCodes as StatusCodes2 } from "http-status-codes";
+import { StatusCodes as StatusCodes6 } from "http-status-codes";
 var registerOrgOwner2 = catch_async_default(
   async (req, res, next) => {
     const result = await authService.registerOrgOwner(req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.CREATED,
+      statusCode: StatusCodes6.CREATED,
       message: "Organization and Owner account created successfully",
       data: result
     });
@@ -1272,7 +1386,7 @@ var registerMember2 = catch_async_default(
   async (req, res, next) => {
     const result = await authService.registerMember(req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.CREATED,
+      statusCode: StatusCodes6.CREATED,
       message: "Member account created and joined organization successfully",
       data: result
     });
@@ -1298,7 +1412,7 @@ var login2 = catch_async_default(
       // 1 day in milliseconds
     });
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.OK,
+      statusCode: StatusCodes6.OK,
       message: "User logged in successfully",
       data: {
         user: jwtPayload,
@@ -1313,11 +1427,14 @@ var getMe2 = catch_async_default(
     const userId = req.user?.id;
     console.log("user", req.user);
     if (!userId) {
-      throw new Error("Cannot fetch user, please log in again");
+      throw new AppError(
+        StatusCodes6.UNAUTHORIZED,
+        "Cannot fetch user, please log in again"
+      );
     }
     const result = await authService.getMe(userId);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.OK,
+      statusCode: StatusCodes6.OK,
       message: "User data retrieved successfully",
       data: result
     });
@@ -1327,7 +1444,10 @@ var refreshToken2 = catch_async_default(
   async (req, res, next) => {
     const { refreshToken: token } = req.cookies;
     if (!token) {
-      throw new Error("No refresh token provided. Please log in again.");
+      throw new AppError(
+        StatusCodes6.UNAUTHORIZED,
+        "No refresh token provided. Please log in again."
+      );
     }
     const { accessToken, jwtPayload } = await authService.refreshToken(token);
     res.cookie("accessToken", accessToken, {
@@ -1337,7 +1457,7 @@ var refreshToken2 = catch_async_default(
       maxAge: 24 * 60 * 60 * 1e3
     });
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.OK,
+      statusCode: StatusCodes6.OK,
       message: "Access token generated successfully",
       data: {
         accessToken,
@@ -1364,7 +1484,7 @@ var googleLogin2 = catch_async_default(
       // 1 day in milliseconds
     });
     sendSuccessResponse(res, {
-      statusCode: StatusCodes2.OK,
+      statusCode: StatusCodes6.OK,
       message: "User logged in successfully via Google",
       data: {
         user: jwtPayload,
@@ -1374,13 +1494,38 @@ var googleLogin2 = catch_async_default(
     });
   }
 );
+var sendVerificationEmail2 = async (req, res, next) => {
+  try {
+    await authService.sendVerificationEmail(req.body);
+    res.status(200).json({
+      status: "success",
+      message: "If the account exists and is not verified, a verification code has been sent."
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+var verifyEmail2 = async (req, res, next) => {
+  try {
+    const result = await authService.verifyEmail(req.body);
+    res.status(200).json({
+      status: "success",
+      message: "Email verified successfully.",
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 var authController = {
   registerOrgOwner: registerOrgOwner2,
   registerMember: registerMember2,
   login: login2,
   getMe: getMe2,
   refreshToken: refreshToken2,
-  googleLogin: googleLogin2
+  googleLogin: googleLogin2,
+  sendVerificationEmail: sendVerificationEmail2,
+  verifyEmail: verifyEmail2
 };
 
 // src/app/middleware/validate.ts
@@ -1390,13 +1535,7 @@ var validate = (schema) => {
       body: req.body
     });
     if (!result.success) {
-      res.status(400).json({
-        status: "error",
-        errors: result.error.issues.map((err) => ({
-          field: err.path.slice(1).join("."),
-          message: err.message
-        }))
-      });
+      next(result.error);
       return;
     }
     req.body = result.data.body;
@@ -1407,14 +1546,7 @@ var validateQuery = (schema) => {
   return (req, res, next) => {
     const result = schema.safeParse(req.query);
     if (!result.success) {
-      res.status(400).json({
-        success: false,
-        message: "Validation failed for query parameters",
-        errors: result.error.issues.map((err) => ({
-          field: err.path.join("."),
-          message: err.message
-        }))
-      });
+      next(result.error);
       return;
     }
     req.validatedQuery = result.data;
@@ -1455,19 +1587,33 @@ var googleLoginSchema = z.object({
     organizationId: z.uuid({ error: "Organization ID must be a valid UUID" }).optional()
   })
 });
+var sendVerificationEmailValidationSchema = z.object({
+  body: z.object({
+    email: z.email("Invalid email address.")
+  })
+});
+var verifyEmailValidationSchema = z.object({
+  body: z.object({
+    email: z.email("Invalid email address."),
+    otp: z.string().regex(/^\d{6}$/, "OTP must be a 6-digit number.")
+  })
+});
 var authValidation = {
   registerOrgOwnerSchema,
   registerMemberSchema,
   loginSchema,
-  googleLoginSchema
+  googleLoginSchema,
+  sendVerificationEmailValidationSchema
 };
 
 // src/app/middleware/auth.ts
+import { StatusCodes as StatusCodes7 } from "http-status-codes";
 var auth = (...requiredRoles) => {
   return catch_async_default(async (req, res, next) => {
     const accessToken = req.cookies.accessToken ? req.cookies.accessToken : req.headers.authorization?.startsWith("Bearer") ? req.headers.authorization.split(" ")[1] : req.headers.authorization;
     if (!accessToken) {
-      throw new Error(
+      throw new AppError(
+        StatusCodes7.UNAUTHORIZED,
         "You are not logged in. Please log in to access this resource."
       );
     }
@@ -1476,11 +1622,11 @@ var auth = (...requiredRoles) => {
       config_default.jwt_access_secret
     );
     if (!verifyAccessToken.success) {
-      throw new Error(verifyAccessToken.error);
+      throw new AppError(StatusCodes7.UNAUTHORIZED, "Invalid access token.");
     }
-    const { id, email, name } = verifyAccessToken.data;
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const { id, email } = verifyAccessToken.data;
+    const user = await prisma.user.findFirst({
+      where: { id, email },
       include: {
         memberships: {
           include: {
@@ -1490,21 +1636,29 @@ var auth = (...requiredRoles) => {
       }
     });
     if (!user || user.deletedAt) {
-      throw new Error("User not found. Please log in again.");
+      throw new AppError(
+        StatusCodes7.UNAUTHORIZED,
+        "User not found. Please log in again."
+      );
     }
     if (user.status !== "ACTIVE") {
-      throw new Error(
+      throw new AppError(
+        StatusCodes7.UNAUTHORIZED,
         "Your account has been suspended or inactive. Please contact support."
       );
     }
     const membership = user.memberships[0];
     if (!membership) {
-      throw new Error("User does not belong to any organization.");
+      throw new AppError(
+        StatusCodes7.FORBIDDEN,
+        "User does not belong to any organization."
+      );
     }
     const userRole = membership.role;
     const organizationId = membership.organizationId;
     if (requiredRoles.length && !requiredRoles.includes(userRole)) {
-      throw new Error(
+      throw new AppError(
+        StatusCodes7.FORBIDDEN,
         "Forbidden. You don't have permission to access this resource."
       );
     }
@@ -1512,6 +1666,7 @@ var auth = (...requiredRoles) => {
       id: user.id,
       name: user.fullName,
       email: user.email,
+      emailVerified: user.emailVerified,
       role: userRole,
       organizationId
     };
@@ -1552,10 +1707,23 @@ router.post(
   validate(authValidation.googleLoginSchema),
   authController.googleLogin
 );
+router.post(
+  "/send-verification-email",
+  validate(sendVerificationEmailValidationSchema),
+  authController.sendVerificationEmail
+);
+router.post(
+  "/verify-email",
+  validate(verifyEmailValidationSchema),
+  authController.verifyEmail
+);
 var authRoutes = router;
 
 // src/app/module/team/team.route.ts
 import { Router as Router2 } from "express";
+
+// src/app/module/team/team.service.ts
+import { StatusCodes as StatusCodes8 } from "http-status-codes";
 
 // src/app/utils/query.ts
 var getPagination = (page, limit) => ({
@@ -1583,7 +1751,8 @@ var createTeam = async (organizationId, payload) => {
     }
   });
   if (existingTeam && !existingTeam.deletedAt) {
-    throw new Error(
+    throw new AppError(
+      StatusCodes8.CONFLICT,
       "A team with this name already exists in the organization."
     );
   }
@@ -1648,7 +1817,7 @@ var getTeamById = async (organizationId, teamId) => {
     }
   });
   if (!team) {
-    throw new Error("Team not found");
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found");
   }
   return team;
 };
@@ -1661,7 +1830,7 @@ var updateTeam = async (organizationId, teamId, payload) => {
     }
   });
   if (!team) {
-    throw new Error("Team not found");
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found");
   }
   const updatedTeam = await prisma.team.update({
     where: { id: teamId },
@@ -1678,7 +1847,7 @@ var deleteTeam = async (organizationId, teamId) => {
     }
   });
   if (!team) {
-    throw new Error("Team not found");
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found");
   }
   const updatedTeam = await prisma.team.update({
     where: { id: teamId },
@@ -1695,16 +1864,19 @@ var teamService = {
 };
 
 // src/app/module/team/team.controller.ts
-import { StatusCodes as StatusCodes3 } from "http-status-codes";
+import { StatusCodes as StatusCodes9 } from "http-status-codes";
 var createTeam2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await teamService.createTeam(organizationId, req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes3.CREATED,
+      statusCode: StatusCodes9.CREATED,
       message: "Team created successfully",
       data: result
     });
@@ -1714,12 +1886,15 @@ var getAllTeams2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const query = req.validatedQuery;
     const result = await teamService.getAllTeams(organizationId, query);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes3.OK,
+      statusCode: StatusCodes9.OK,
       message: "Teams retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -1731,17 +1906,23 @@ var getTeamById2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { teamId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!teamId) {
-      throw new Error("Team ID is required to retrieve a team.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Team ID is required to retrieve a team."
+      );
     }
     const result = await teamService.getTeamById(
       organizationId,
       teamId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes3.OK,
+      statusCode: StatusCodes9.OK,
       message: "Team retrieved successfully",
       data: result
     });
@@ -1752,10 +1933,16 @@ var updateTeam2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { teamId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     const result = await teamService.updateTeam(
       organizationId,
@@ -1763,7 +1950,7 @@ var updateTeam2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes3.OK,
+      statusCode: StatusCodes9.OK,
       message: "Team updated successfully",
       data: result
     });
@@ -1772,22 +1959,31 @@ var updateTeam2 = catch_async_default(
 var deleteTeam2 = catch_async_default(
   async (req, res, next) => {
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     const organizationId = req.user?.organizationId;
     const { teamId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!teamId) {
-      throw new Error("Team ID is required to delete a team.");
+      throw new AppError(
+        StatusCodes9.BAD_REQUEST,
+        "Team ID is required to delete a team."
+      );
     }
     const result = await teamService.deleteTeam(
       organizationId,
       teamId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes3.OK,
+      statusCode: StatusCodes9.OK,
       message: "Team deleted successfully",
       data: result
     });
@@ -1839,15 +2035,17 @@ var teamValidation = {
 };
 
 // src/app/middleware/subscription-check.ts
+import { StatusCodes as StatusCodes10 } from "http-status-codes";
 var subscriptionCheck = async (req, res, next) => {
   try {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      return res.status(400).json({
-        success: false,
-        message: "Organization context is required.",
-        errors: []
-      });
+      return next(
+        new AppError(
+          StatusCodes10.BAD_REQUEST,
+          "Organization context is required."
+        )
+      );
     }
     const subscription = await prisma.subscription.findUnique({
       where: {
@@ -1859,35 +2057,63 @@ var subscriptionCheck = async (req, res, next) => {
       }
     });
     if (!subscription) {
-      return res.status(403).json({
-        success: false,
-        message: "An active subscription is required.",
-        errors: []
-      });
+      return next(
+        new AppError(
+          StatusCodes10.FORBIDDEN,
+          "No active subscription found. Please subscribe to access this feature."
+        )
+      );
     }
     if (subscription.status !== SubscriptionStatus.ACTIVE) {
-      return res.status(403).json({
-        success: false,
-        message: "Please activate your subscription to access this feature.",
-        errors: []
-      });
+      return next(
+        new AppError(
+          StatusCodes10.FORBIDDEN,
+          "Please activate your subscription to access this feature."
+        )
+      );
     }
     if (subscription.currentPeriodEnd && subscription.currentPeriodEnd < /* @__PURE__ */ new Date()) {
-      return res.status(403).json({
-        success: false,
-        message: "Subscription has expired. Please renew your subscription.",
-        errors: []
-      });
+      return next(
+        new AppError(
+          StatusCodes10.FORBIDDEN,
+          "Subscription has expired. Please renew your subscription."
+        )
+      );
     }
     return next();
   } catch (error) {
     console.error("Subscription check error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Something went wrong",
-      errors: []
-    });
+    return next(error);
   }
+};
+
+// src/app/middleware/email-verified.ts
+import { StatusCodes as StatusCodes11 } from "http-status-codes";
+var emailVerificationMiddleware = async (req, res, next) => {
+  if (!req.user) {
+    next(
+      new AppError(
+        StatusCodes11.UNAUTHORIZED,
+        "You are not logged in. Please log in to access this resource."
+      )
+    );
+    return;
+  }
+  const user = req.user;
+  if (!user) {
+    next(new AppError(StatusCodes11.NOT_FOUND, "User not found."));
+    return;
+  }
+  if (!user.emailVerified) {
+    next(
+      new AppError(
+        StatusCodes11.FORBIDDEN,
+        "Please verify your email before accessing this resource."
+      )
+    );
+    return;
+  }
+  next();
 };
 
 // src/app/module/team/team.route.ts
@@ -1895,6 +2121,7 @@ var router2 = Router2();
 router2.post(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(teamValidation.createTeamSchema),
   teamController.createTeam
@@ -1902,17 +2129,22 @@ router2.post(
 router2.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(teamValidation.teamQuerySchema),
   teamController.getAllTeams
 );
 router2.get(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   teamController.getTeamById
 );
 router2.patch(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(teamValidation.updateTeamSchema),
   teamController.updateTeam
@@ -1920,6 +2152,7 @@ router2.patch(
 router2.delete(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   teamController.deleteTeam
 );
@@ -1981,12 +2214,16 @@ var cloudinaryService = {
 };
 
 // src/app/module/project/project.service.ts
+import { StatusCodes as StatusCodes12 } from "http-status-codes";
 var createProject = async (organizationId, payload, file) => {
   if (!file) {
-    throw new Error("Project document is required.");
+    throw new AppError(
+      StatusCodes12.BAD_REQUEST,
+      "Project document is required."
+    );
   }
   if (file.mimetype !== "application/pdf") {
-    throw new Error("Only PDF files are allowed.");
+    throw new AppError(StatusCodes12.BAD_REQUEST, "Only PDF files are allowed.");
   }
   const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
     folder: `orbrin/organizations/${organizationId}/projects`,
@@ -2060,7 +2297,7 @@ var getProjectById = async (organizationId, projectId) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   return project;
 };
@@ -2073,7 +2310,7 @@ var updateProject = async (organizationId, projectId, payload) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   const updatedProject = await prisma.project.update({
     where: {
@@ -2092,7 +2329,7 @@ var deleteProject = async (organizationId, projectId) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   const updatedProject = await prisma.project.update({
     where: {
@@ -2113,7 +2350,7 @@ var assignTeamToProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   const team = await prisma.team.findFirst({
     where: {
@@ -2123,7 +2360,7 @@ var assignTeamToProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (!team) {
-    throw new Error("Team not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Team not found.");
   }
   const existingAssignment = await prisma.projectTeam.findFirst({
     where: {
@@ -2132,7 +2369,10 @@ var assignTeamToProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (existingAssignment) {
-    throw new Error("Team is already assigned to this project.");
+    throw new AppError(
+      StatusCodes12.CONFLICT,
+      "Team is already assigned to this project."
+    );
   }
   const assignment = await prisma.projectTeam.create({
     data: {
@@ -2151,7 +2391,7 @@ var removeTeamFromProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   const team = await prisma.team.findFirst({
     where: {
@@ -2161,7 +2401,7 @@ var removeTeamFromProject = async (organizationId, projectId, teamId) => {
     }
   });
   if (!team) {
-    throw new Error("Team not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Team not found.");
   }
   const deletedAssignment = await prisma.projectTeam.delete({
     where: {
@@ -2187,13 +2427,16 @@ var uploadProjectDocument = async (organizationId, projectId, file) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   if (!file) {
-    throw new Error("Project document is required.");
+    throw new AppError(
+      StatusCodes12.BAD_REQUEST,
+      "Project document is required."
+    );
   }
   if (file.mimetype !== "application/pdf") {
-    throw new Error("Only PDF files are allowed.");
+    throw new AppError(StatusCodes12.BAD_REQUEST, "Only PDF files are allowed.");
   }
   const uploadedDocument = await cloudinaryService.uploadBuffer(file.buffer, {
     folder: `orbrin/organizations/${organizationId}/projects`,
@@ -2256,10 +2499,10 @@ var deleteProjectDocument = async (organizationId, projectId) => {
     }
   });
   if (!project) {
-    throw new Error("Project not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
   if (!project.documentPublicId) {
-    throw new Error("Project document not found.");
+    throw new AppError(StatusCodes12.NOT_FOUND, "Project document not found.");
   }
   await cloudinaryService.deleteAsset(project.documentPublicId, "image");
   const updatedProject = await prisma.project.update({
@@ -2292,13 +2535,16 @@ var projectService = {
 };
 
 // src/app/module/project/project.controller.ts
-import { StatusCodes as StatusCodes4 } from "http-status-codes";
+import { StatusCodes as StatusCodes13 } from "http-status-codes";
 var createProject2 = catch_async_default(async (req, res) => {
   if (!req.user?.organizationId) {
-    throw new Error("Organization ID is missing.");
+    throw new AppError(StatusCodes13.BAD_REQUEST, "Organization ID is missing.");
   }
   if (!req.file) {
-    throw new Error("Project PDF document is required.");
+    throw new AppError(
+      StatusCodes13.BAD_REQUEST,
+      "Project PDF document is required."
+    );
   }
   const result = await projectService.createProject(
     req.user.organizationId,
@@ -2306,7 +2552,7 @@ var createProject2 = catch_async_default(async (req, res) => {
     req.file
   );
   sendSuccessResponse(res, {
-    statusCode: StatusCodes4.CREATED,
+    statusCode: StatusCodes13.CREATED,
     message: "Project created successfully.",
     data: result
   });
@@ -2315,12 +2561,15 @@ var getAllProjects2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const query = req.validatedQuery;
     const result = await projectService.getAllProjects(organizationId, query);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Projects retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -2332,14 +2581,17 @@ var getProjectById2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await projectService.getProjectById(
       organizationId,
       projectId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Project retrieved successfully",
       data: result
     });
@@ -2350,7 +2602,10 @@ var updateProject2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await projectService.updateProject(
       organizationId,
@@ -2358,7 +2613,7 @@ var updateProject2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Project updated successfully",
       data: result
     });
@@ -2369,14 +2624,17 @@ var deleteProject2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await projectService.deleteProject(
       organizationId,
       projectId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Project deleted successfully",
       data: result
     });
@@ -2388,7 +2646,10 @@ var assignTeamToProject2 = catch_async_default(
     const { projectId } = req.params;
     const { teamId } = req.body;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await projectService.assignTeamToProject(
       organizationId,
@@ -2396,7 +2657,7 @@ var assignTeamToProject2 = catch_async_default(
       teamId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.CREATED,
+      statusCode: StatusCodes13.CREATED,
       message: "Team assigned to project successfully",
       data: result
     });
@@ -2407,7 +2668,10 @@ var removeTeamFromProject2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId, teamId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await projectService.removeTeamFromProject(
       organizationId,
@@ -2415,7 +2679,7 @@ var removeTeamFromProject2 = catch_async_default(
       teamId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Team removed from project successfully",
       data: result
     });
@@ -2423,13 +2687,13 @@ var removeTeamFromProject2 = catch_async_default(
 );
 var uploadProjectDocument2 = catch_async_default(async (req, res) => {
   if (!req.user?.organizationId) {
-    throw new Error("Organization ID is missing.");
+    throw new AppError(StatusCodes13.BAD_REQUEST, "Organization ID is missing.");
   }
   if (!req.file) {
-    throw new Error("PDF document is required.");
+    throw new AppError(StatusCodes13.BAD_REQUEST, "PDF document is required.");
   }
   if (!req.params.projectId) {
-    throw new Error("Project ID is required.");
+    throw new AppError(StatusCodes13.BAD_REQUEST, "Project ID is required.");
   }
   const result = await projectService.uploadProjectDocument(
     req.user.organizationId,
@@ -2437,7 +2701,7 @@ var uploadProjectDocument2 = catch_async_default(async (req, res) => {
     req.file
   );
   sendSuccessResponse(res, {
-    statusCode: StatusCodes4.OK,
+    statusCode: StatusCodes13.OK,
     message: "Project document uploaded successfully.",
     data: result
   });
@@ -2447,17 +2711,20 @@ var deleteProjectDocument2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes13.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!projectId) {
-      throw new Error("Project ID is required.");
+      throw new AppError(StatusCodes13.BAD_REQUEST, "Project ID is required.");
     }
     await projectService.deleteProjectDocument(
       organizationId,
       projectId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes4.OK,
+      statusCode: StatusCodes13.OK,
       message: "Project document deleted successfully",
       data: null
     });
@@ -2513,20 +2780,12 @@ var projectValidation = {
 import multer from "multer";
 var storage = multer.memoryStorage();
 var imageFileFilter = (_req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp"
-  ];
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
     return;
   }
-  cb(
-    new Error(
-      "Only JPEG, PNG, and WebP images are allowed."
-    )
-  );
+  cb(new Error("Only JPEG, PNG, and WebP images are allowed."));
 };
 var pdfFileFilter = (_req, file, cb) => {
   if (file.mimetype === "application/pdf") {
@@ -2555,6 +2814,8 @@ var router3 = Router3();
 router3.post(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   uploadPdf.single("document"),
   validate(projectValidation.createProjectSchema),
   projectController.createProject
@@ -2562,17 +2823,22 @@ router3.post(
 router3.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(projectValidation.projectQuerySchema),
   projectController.getAllProjects
 );
 router3.get(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   projectController.getProjectById
 );
 router3.patch(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(projectValidation.updateProjectSchema),
   projectController.updateProject
@@ -2580,12 +2846,14 @@ router3.patch(
 router3.delete(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   projectController.deleteProject
 );
 router3.post(
   "/:projectId/teams",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(projectValidation.assignTeamSchema),
   projectController.assignTeamToProject
@@ -2593,18 +2861,23 @@ router3.post(
 router3.delete(
   "/:projectId/teams/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   projectController.removeTeamFromProject
 );
 router3.patch(
   "/:projectId/document",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   uploadPdf.single("document"),
   projectController.uploadProjectDocument
 );
 router3.delete(
   "/:projectId/document",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   projectController.deleteProjectDocument
 );
 var projectRoutes = router3;
@@ -2613,18 +2886,19 @@ var projectRoutes = router3;
 import { Router as Router4 } from "express";
 
 // src/app/module/task/task.service.ts
+import { StatusCodes as StatusCodes14 } from "http-status-codes";
 var createTask = async (organizationId, userId, projectId, payload) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
-    throw new Error("Project not found");
+    throw new AppError(StatusCodes14.NOT_FOUND, "Project not found");
   }
   if (payload.status && !["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)) {
-    throw new Error("Invalid status value");
+    throw new AppError(StatusCodes14.BAD_REQUEST, "Invalid status value");
   }
   if (payload.priority && !["LOW", "MEDIUM", "HIGH"].includes(payload.priority)) {
-    throw new Error("Invalid priority value");
+    throw new AppError(StatusCodes14.BAD_REQUEST, "Invalid priority value");
   }
   const task = await prisma.task.create({
     data: {
@@ -2644,7 +2918,7 @@ var getTasksByProject = async (organizationId, projectId, query) => {
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
-    throw new Error("Project not found");
+    throw new AppError(StatusCodes14.NOT_FOUND, "Project not found");
   }
   const {
     page,
@@ -2696,7 +2970,7 @@ var getTaskById = async (organizationId, taskId) => {
     }
   });
   if (!task) {
-    throw new Error("Task not found");
+    throw new AppError(StatusCodes14.NOT_FOUND, "Task not found");
   }
   return task;
 };
@@ -2712,14 +2986,20 @@ var updateTask = async (organizationId, taskId, payload, userId, role) => {
     }
   });
   if (!task) {
-    throw new Error("Task not found");
+    throw new AppError(StatusCodes14.NOT_FOUND, "Task not found");
   }
   if (task.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN && task.assigneeId !== userId) {
-    throw new Error("You are not authorized to update this task");
+    throw new AppError(
+      StatusCodes14.FORBIDDEN,
+      "You are not authorized to update this task"
+    );
   }
   console.log("role", role);
   if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
-    throw new Error("You are not authorized to assign this task");
+    throw new AppError(
+      StatusCodes14.FORBIDDEN,
+      "You are not authorized to assign this task"
+    );
   }
   const updateData = { ...payload };
   if (payload.dueDate) {
@@ -2743,7 +3023,7 @@ var deleteTask = async (organizationId, taskId) => {
     }
   });
   if (!task) {
-    throw new Error("Task not found");
+    throw new AppError(StatusCodes14.NOT_FOUND, "Task not found");
   }
   const deletedTask = await prisma.task.update({
     where: { id: taskId },
@@ -2760,20 +3040,29 @@ var taskService = {
 };
 
 // src/app/module/task/task.controller.ts
-import { StatusCodes as StatusCodes5 } from "http-status-codes";
+import { StatusCodes as StatusCodes15 } from "http-status-codes";
 var createTask2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.id;
     const { projectId } = req.params;
     if (!projectId) {
-      throw new Error("Project ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Project ID is missing in the request parameters."
+      );
     }
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!userId) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     const result = await taskService.createTask(
       organizationId,
@@ -2782,7 +3071,7 @@ var createTask2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes5.CREATED,
+      statusCode: StatusCodes15.CREATED,
       message: "Task created successfully",
       data: result
     });
@@ -2793,7 +3082,10 @@ var getTasksByProject2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!projectId) {
-      throw new Error("Project ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Project ID is missing in the request parameters."
+      );
     }
     const query = req.validatedQuery;
     const result = await taskService.getTasksByProject(
@@ -2802,7 +3094,7 @@ var getTasksByProject2 = catch_async_default(
       query
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes5.OK,
+      statusCode: StatusCodes15.OK,
       message: "Tasks retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -2814,17 +3106,23 @@ var getTaskById2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { taskId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!taskId) {
-      throw new Error("Task ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Task ID is missing in the request parameters."
+      );
     }
     const result = await taskService.getTaskById(
       organizationId,
       taskId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes5.OK,
+      statusCode: StatusCodes15.OK,
       message: "Task retrieved successfully",
       data: result
     });
@@ -2838,10 +3136,16 @@ var updateTask2 = catch_async_default(
     const userId = user?.id;
     const role = user?.role;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!taskId) {
-      throw new Error("Task ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Task ID is missing in the request parameters."
+      );
     }
     const result = await taskService.updateTask(
       organizationId,
@@ -2851,7 +3155,7 @@ var updateTask2 = catch_async_default(
       role
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes5.OK,
+      statusCode: StatusCodes15.OK,
       message: "Task updated successfully",
       data: result
     });
@@ -2862,17 +3166,23 @@ var deleteTask2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { taskId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!taskId) {
-      throw new Error("Task ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Task ID is missing in the request parameters."
+      );
     }
     const result = await taskService.deleteTask(
       organizationId,
       taskId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes5.OK,
+      statusCode: StatusCodes15.OK,
       message: "Task deleted successfully",
       data: result
     });
@@ -2952,6 +3262,7 @@ var router4 = Router4();
 router4.post(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(taskValidation.createTaskSchema),
   taskController.createTask
@@ -2959,17 +3270,22 @@ router4.post(
 router4.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getTasksByProject
 );
 router4.get(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   taskController.getTaskById
 );
 router4.patch(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(taskValidation.updateTaskSchema),
   taskController.updateTask
@@ -2977,6 +3293,7 @@ router4.patch(
 router4.delete(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   taskController.deleteTask
 );
@@ -2986,12 +3303,13 @@ var taskRoutes = router4;
 import { Router as Router5 } from "express";
 
 // src/app/module/sprint/sprint.service.ts
+import { StatusCodes as StatusCodes16 } from "http-status-codes";
 var createSprint = async (organizationId, projectId, payload) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
-    throw new Error("Project not found");
+    throw new AppError(StatusCodes16.NOT_FOUND, "Project not found");
   }
   const sprint = await prisma.sprint.create({
     data: {
@@ -3010,7 +3328,7 @@ var getSprintsByProject = async (organizationId, projectId, query) => {
     where: { id: projectId, organizationId, deletedAt: null }
   });
   if (!project) {
-    throw new Error("Project not found");
+    throw new AppError(StatusCodes16.NOT_FOUND, "Project not found");
   }
   const { page, limit, search, sortBy, sortOrder, status } = query;
   const where = {
@@ -3054,7 +3372,7 @@ var getSprintById = async (organizationId, sprintId) => {
     }
   });
   if (!sprint) {
-    throw new Error("Sprint not found");
+    throw new AppError(StatusCodes16.NOT_FOUND, "Sprint not found");
   }
   return sprint;
 };
@@ -3070,7 +3388,7 @@ var updateSprint = async (organizationId, sprintId, payload) => {
     }
   });
   if (!sprint) {
-    throw new Error("Sprint not found");
+    throw new AppError(StatusCodes16.NOT_FOUND, "Sprint not found");
   }
   const updateData = { ...payload };
   if (payload.startDate) {
@@ -3097,7 +3415,7 @@ var deleteSprint = async (organizationId, sprintId) => {
     }
   });
   if (!sprint) {
-    throw new Error("Sprint not found");
+    throw new AppError(StatusCodes16.NOT_FOUND, "Sprint not found");
   }
   const deletedSprint = await prisma.sprint.update({
     where: { id: sprintId },
@@ -3114,13 +3432,16 @@ var sprintService = {
 };
 
 // src/app/module/sprint/sprint.controller.ts
-import { StatusCodes as StatusCodes6 } from "http-status-codes";
+import { StatusCodes as StatusCodes17 } from "http-status-codes";
 var createSprint2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!projectId) {
-      throw new Error("Project ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Project ID is missing in the request parameters."
+      );
     }
     const result = await sprintService.createSprint(
       organizationId,
@@ -3128,7 +3449,7 @@ var createSprint2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes6.CREATED,
+      statusCode: StatusCodes17.CREATED,
       message: "Sprint created successfully",
       data: result
     });
@@ -3139,7 +3460,10 @@ var getSprintsByProject2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { projectId } = req.params;
     if (!projectId) {
-      throw new Error("Project ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Project ID is missing in the request parameters."
+      );
     }
     const query = req.validatedQuery;
     const result = await sprintService.getSprintsByProject(
@@ -3148,7 +3472,7 @@ var getSprintsByProject2 = catch_async_default(
       query
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes6.OK,
+      statusCode: StatusCodes17.OK,
       message: "Sprints retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -3160,17 +3484,23 @@ var getSprintById2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { sprintId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!sprintId) {
-      throw new Error("Sprint ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Sprint ID is missing in the request parameters."
+      );
     }
     const result = await sprintService.getSprintById(
       organizationId,
       sprintId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes6.OK,
+      statusCode: StatusCodes17.OK,
       message: "Sprint retrieved successfully",
       data: result
     });
@@ -3181,10 +3511,16 @@ var updateSprint2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { sprintId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!sprintId) {
-      throw new Error("Sprint ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Sprint ID is missing in the request parameters."
+      );
     }
     const result = await sprintService.updateSprint(
       organizationId,
@@ -3192,7 +3528,7 @@ var updateSprint2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes6.OK,
+      statusCode: StatusCodes17.OK,
       message: "Sprint updated successfully",
       data: result
     });
@@ -3203,17 +3539,23 @@ var deleteSprint2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { sprintId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!sprintId) {
-      throw new Error("Sprint ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes17.BAD_REQUEST,
+        "Sprint ID is missing in the request parameters."
+      );
     }
     const result = await sprintService.deleteSprint(
       organizationId,
       sprintId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes6.OK,
+      statusCode: StatusCodes17.OK,
       message: "Sprint deleted successfully",
       data: result
     });
@@ -3272,6 +3614,7 @@ var router5 = Router5();
 router5.post(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(sprintValidation.createSprintSchema),
   sprintController.createSprint
@@ -3279,17 +3622,22 @@ router5.post(
 router5.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(sprintValidation.sprintQuerySchema),
   sprintController.getSprintsByProject
 );
 router5.get(
   "/:sprintId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   sprintController.getSprintById
 );
 router5.patch(
   "/:sprintId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(sprintValidation.updateSprintSchema),
   sprintController.updateSprint
@@ -3297,6 +3645,7 @@ router5.patch(
 router5.delete(
   "/:sprintId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   sprintController.deleteSprint
 );
@@ -3306,6 +3655,7 @@ var sprintRoutes = router5;
 import { Router as Router6 } from "express";
 
 // src/app/module/comment/comment.service.ts
+import { StatusCodes as StatusCodes18 } from "http-status-codes";
 var createComment = async (organizationId, userId, taskId, payload) => {
   const task = await prisma.task.findFirst({
     where: {
@@ -3318,7 +3668,7 @@ var createComment = async (organizationId, userId, taskId, payload) => {
     }
   });
   if (!task) {
-    throw new Error("Task not found");
+    throw new AppError(StatusCodes18.NOT_FOUND, "Task not found");
   }
   const comment = await prisma.comment.create({
     data: {
@@ -3350,7 +3700,7 @@ var getCommentsByTask = async (organizationId, taskId, query) => {
     }
   });
   if (!task) {
-    throw new Error("Task not found");
+    throw new AppError(StatusCodes18.NOT_FOUND, "Task not found");
   }
   const { page, limit, search, sortBy, sortOrder } = query;
   const where = {
@@ -3389,10 +3739,13 @@ var updateComment = async (organizationId, userId, commentId, payload) => {
     }
   });
   if (!comment) {
-    throw new Error("Comment not found");
+    throw new AppError(StatusCodes18.NOT_FOUND, "Comment not found");
   }
   if (comment.authorId !== userId) {
-    throw new Error("Unauthorized to update this comment");
+    throw new AppError(
+      StatusCodes18.FORBIDDEN,
+      "Unauthorized to update this comment"
+    );
   }
   const updatedComment = await prisma.comment.update({
     where: { id: commentId },
@@ -3424,10 +3777,13 @@ var deleteComment = async (organizationId, userId, userRole, commentId) => {
     }
   });
   if (!comment) {
-    throw new Error("Comment not found");
+    throw new AppError(StatusCodes18.NOT_FOUND, "Comment not found");
   }
   if (comment.authorId !== userId && userRole !== "ADMIN" && userRole !== "MANAGER") {
-    throw new Error("Unauthorized to delete this comment");
+    throw new AppError(
+      StatusCodes18.FORBIDDEN,
+      "Unauthorized to delete this comment"
+    );
   }
   const deletedComment = await prisma.comment.update({
     where: { id: commentId },
@@ -3443,14 +3799,17 @@ var commentService = {
 };
 
 // src/app/module/comment/comment.controller.ts
-import { StatusCodes as StatusCodes7 } from "http-status-codes";
+import { StatusCodes as StatusCodes19 } from "http-status-codes";
 var createComment2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.id;
     const { taskId } = req.params;
     if (!taskId) {
-      throw new Error("Task ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes19.BAD_REQUEST,
+        "Task ID is missing in the request parameters."
+      );
     }
     const result = await commentService.createComment(
       organizationId,
@@ -3459,7 +3818,7 @@ var createComment2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes7.CREATED,
+      statusCode: StatusCodes19.CREATED,
       message: "Comment added successfully",
       data: result
     });
@@ -3470,7 +3829,10 @@ var getCommentsByTask2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { taskId } = req.params;
     if (!taskId) {
-      throw new Error("Task ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes19.BAD_REQUEST,
+        "Task ID is missing in the request parameters."
+      );
     }
     const query = req.validatedQuery;
     const result = await commentService.getCommentsByTask(
@@ -3479,7 +3841,7 @@ var getCommentsByTask2 = catch_async_default(
       query
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes7.OK,
+      statusCode: StatusCodes19.OK,
       message: "Comments retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -3492,7 +3854,10 @@ var updateComment2 = catch_async_default(
     const userId = req.user?.id;
     const { commentId } = req.params;
     if (!commentId) {
-      throw new Error("Comment ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes19.BAD_REQUEST,
+        "Comment ID is missing in the request parameters."
+      );
     }
     const result = await commentService.updateComment(
       organizationId,
@@ -3501,7 +3866,7 @@ var updateComment2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes7.OK,
+      statusCode: StatusCodes19.OK,
       message: "Comment updated successfully",
       data: result
     });
@@ -3514,7 +3879,10 @@ var deleteComment2 = catch_async_default(
     const userRole = req.user?.role;
     const { commentId } = req.params;
     if (!commentId) {
-      throw new Error("Comment ID is missing in the request parameters.");
+      throw new AppError(
+        StatusCodes19.BAD_REQUEST,
+        "Comment ID is missing in the request parameters."
+      );
     }
     const result = await commentService.deleteComment(
       organizationId,
@@ -3523,7 +3891,7 @@ var deleteComment2 = catch_async_default(
       commentId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes7.OK,
+      statusCode: StatusCodes19.OK,
       message: "Comment deleted successfully",
       data: result
     });
@@ -3565,18 +3933,21 @@ router6.post(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   subscriptionCheck,
+  emailVerificationMiddleware,
   validate(commentValidation.createCommentSchema),
   commentController.createComment
 );
 router6.get(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(commentValidation.commentQuerySchema),
   commentController.getCommentsByTask
 );
 router6.patch(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(commentValidation.updateCommentSchema),
   commentController.updateComment
@@ -3584,6 +3955,7 @@ router6.patch(
 router6.delete(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   commentController.deleteComment
 );
@@ -3735,19 +4107,40 @@ var handleInvoicePaymentSucceeded = async (invoice) => {
 };
 
 // src/app/module/subscription/subscripton.service.ts
-var createCheckoutSession = async (organizationId) => {
+import { StatusCodes as StatusCodes20 } from "http-status-codes";
+var createCheckoutSession = async (organizationId, userId) => {
   const organization = await prisma.organization.findUnique({
-    where: { id: organizationId, deletedAt: null },
+    where: {
+      id: organizationId,
+      deletedAt: null,
+      memberships: {
+        some: { userId }
+      }
+    },
     include: { subscriptions: true }
   });
   if (!organization) {
-    throw new Error("Organization not found");
+    throw new AppError(StatusCodes20.NOT_FOUND, "Organization not found");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId, deletedAt: null },
+    include: { memberships: { where: { organizationId } } }
+  });
+  if (!user) {
+    throw new AppError(StatusCodes20.NOT_FOUND, "User not found");
+  }
+  if (user.memberships[0].role !== "ADMIN") {
+    throw new AppError(
+      StatusCodes20.FORBIDDEN,
+      "Only ADMIN users can create a subscription."
+    );
   }
   const subscription = organization.subscriptions;
   const today = /* @__PURE__ */ new Date();
   const subcriptionEndDate = subscription?.currentPeriodEnd;
   if (subcriptionEndDate && subcriptionEndDate > today) {
-    throw new Error(
+    throw new AppError(
+      StatusCodes20.CONFLICT,
       "Cannot create a new subscription while the current subscription is still active."
     );
   }
@@ -3825,7 +4218,10 @@ var getOrganizationSubscriptionHistory = async (organizationId, query) => {
     where: { organizationId }
   });
   if (!subscription) {
-    throw new Error("No subscription history found for the organization");
+    throw new AppError(
+      StatusCodes20.NOT_FOUND,
+      "No subscription history found for the organization"
+    );
   }
   const { page, limit, search, sortBy, sortOrder, status } = query;
   const paymentWhere = {
@@ -3853,16 +4249,29 @@ var subscriptionService = {
 };
 
 // src/app/module/subscription/subscripton.controller.ts
-import { StatusCodes as StatusCodes8 } from "http-status-codes";
+import { StatusCodes as StatusCodes21 } from "http-status-codes";
 var createCheckoutSession2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
-    if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError(
+        StatusCodes21.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
-    const result = await subscriptionService.createCheckoutSession(organizationId);
+    if (!organizationId) {
+      throw new AppError(
+        StatusCodes21.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
+    }
+    const result = await subscriptionService.createCheckoutSession(
+      organizationId,
+      userId
+    );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes8.OK,
+      statusCode: StatusCodes21.OK,
       message: "Checkout session created successfully",
       data: result
     });
@@ -3872,14 +4281,17 @@ var getSubscriptionHistory = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes21.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await subscriptionService.getOrganizationSubscriptionHistory(
       organizationId,
       req.validatedQuery
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes8.OK,
+      statusCode: StatusCodes21.OK,
       message: "Subscription and billing history retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -3894,7 +4306,7 @@ var webhookHandler2 = catch_async_default(
       signature
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes8.OK,
+      statusCode: StatusCodes21.OK,
       message: "Webhook processed successfully",
       data: result
     });
@@ -3926,11 +4338,13 @@ router7.post("/webhook", subscriptionController.webhookHandler);
 router7.post(
   "/checkout",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   subscriptionController.createCheckoutSession
 );
 router7.get(
   "/history",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(subscriptionHistoryQuerySchema),
   subscriptionController.getSubscriptionHistory
 );
@@ -3940,68 +4354,12 @@ var subscriptionRoutes = router7;
 import { Router as Router8 } from "express";
 
 // src/app/module/user/user.controller.ts
-import { StatusCodes as StatusCodes9 } from "http-status-codes";
+import { StatusCodes as StatusCodes23 } from "http-status-codes";
 
 // src/app/module/user/user.service.ts
 import bcrypt2 from "bcrypt";
-import crypto2 from "crypto";
-
-// src/app/services/mail/index.ts
-import ejs from "ejs";
-import path3 from "path";
-import nodemailer from "nodemailer";
-var transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: config_default.smtp_user,
-    pass: config_default.smtp_password
-  }
-});
-var renderTemplate = async (templateName, data) => {
-  const templatePath = path3.join(
-    process.cwd(),
-    "src",
-    "app",
-    "services",
-    "mail",
-    "templates",
-    templateName
-  );
-  return ejs.renderFile(templatePath, data);
-};
-var sendEmail = async ({
-  to,
-  subject,
-  html
-}) => {
-  await transporter.sendMail({
-    from: `"Orbrin" <${config_default.smtp_user}>`,
-    to,
-    subject,
-    html
-  });
-};
-var sendPasswordResetOtpEmail = async ({
-  to,
-  fullName,
-  otp
-}) => {
-  const html = await renderTemplate("reset-password.ejs", {
-    fullName,
-    otp
-  });
-  await sendEmail({
-    to,
-    subject: "Your Orbrin password reset code",
-    html
-  });
-};
-var mailService = {
-  sendEmail,
-  sendPasswordResetOtpEmail
-};
-
-// src/app/module/user/user.service.ts
+import crypto3 from "crypto";
+import { StatusCodes as StatusCodes22 } from "http-status-codes";
 var getMyProfile = async (userId) => {
   const user = await prisma.user.findUnique({
     where: {
@@ -4039,7 +4397,7 @@ var getMyProfile = async (userId) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   return user;
 };
@@ -4051,7 +4409,7 @@ var updateMyProfile = async (userId, payload) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   return prisma.user.update({
     where: {
@@ -4080,20 +4438,29 @@ var changePassword = async (userId, payload) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   if (user.authProvider !== "LOCAL") {
-    throw new Error("Password change is only available for local accounts.");
+    throw new AppError(
+      StatusCodes22.BAD_REQUEST,
+      "Password change is only available for local accounts."
+    );
   }
   if (!user.passwordHash) {
-    throw new Error("Password is not available for this account.");
+    throw new AppError(
+      StatusCodes22.BAD_REQUEST,
+      "Password is not available for this account."
+    );
   }
   const passwordMatches = await bcrypt2.compare(
     payload.currentPassword,
     user.passwordHash
   );
   if (!passwordMatches) {
-    throw new Error("Current password is incorrect.");
+    throw new AppError(
+      StatusCodes22.UNAUTHORIZED,
+      "Current password is incorrect."
+    );
   }
   const hashedPassword = await bcrypt2.hash(
     payload.newPassword,
@@ -4118,8 +4485,8 @@ var forgotPassword = async (payload) => {
   if (!user || user.deletedAt || user.authProvider !== "LOCAL") {
     return;
   }
-  const otp = crypto2.randomInt(1e5, 1e6).toString();
-  const hashedOtp = crypto2.createHash("sha256").update(otp).digest("hex");
+  const otp = crypto3.randomInt(1e5, 1e6).toString();
+  const hashedOtp = crypto3.createHash("sha256").update(otp).digest("hex");
   const RESET_OTP_EXPIRY = 60 * 5;
   const redisKey = `orbrin:password-reset-otp:${user.id}`;
   await redis.set(redisKey, hashedOtp, {
@@ -4140,16 +4507,19 @@ var resetPassword = async (payload) => {
     }
   });
   if (!user) {
-    throw new Error("Invalid email or OTP.");
+    throw new AppError(StatusCodes22.BAD_REQUEST, "Invalid email or OTP.");
   }
   if (user.authProvider !== "LOCAL") {
-    throw new Error("Password reset is only available for local accounts.");
+    throw new AppError(
+      StatusCodes22.BAD_REQUEST,
+      "Password reset is only available for local accounts."
+    );
   }
-  const hashedOtp = crypto2.createHash("sha256").update(payload.otp).digest("hex");
+  const hashedOtp = crypto3.createHash("sha256").update(payload.otp).digest("hex");
   const redisKey = `orbrin:password-reset-otp:${user.id}`;
   const storedOtp = await redis.get(redisKey);
   if (!storedOtp || storedOtp !== hashedOtp) {
-    throw new Error("Invalid or expired OTP.");
+    throw new AppError(StatusCodes22.BAD_REQUEST, "Invalid or expired OTP.");
   }
   const hashedPassword = await bcrypt2.hash(
     payload.newPassword,
@@ -4178,10 +4548,13 @@ var updateUserStatus = async (userId, adminOrganizationId, payload) => {
     }
   });
   if (user?.status === payload.status) {
-    throw new Error(`User is already ${payload.status}.`);
+    throw new AppError(
+      StatusCodes22.CONFLICT,
+      `User is already ${payload.status}.`
+    );
   }
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   return prisma.user.update({
     where: {
@@ -4213,13 +4586,19 @@ var deleteMyAccount = async (userId) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   if (user.status === "INACTIVE") {
-    throw new Error("User account is already inactive.");
+    throw new AppError(
+      StatusCodes22.CONFLICT,
+      "User account is already inactive."
+    );
   }
   if (user.memberships[0].role === "ADMIN") {
-    throw new Error("Owner cannot delete their account.");
+    throw new AppError(
+      StatusCodes22.FORBIDDEN,
+      "Owner cannot delete their account."
+    );
   }
   await prisma.user.update({
     where: {
@@ -4243,15 +4622,12 @@ var updateProfileImage = async (userId, file) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
-  const uploadedImage = await cloudinaryService.uploadBuffer(
-    file.buffer,
-    {
-      folder: "orbrin/users/profile-images",
-      resourceType: "image"
-    }
-  );
+  const uploadedImage = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: "orbrin/users/profile-images",
+    resourceType: "image"
+  });
   try {
     const updatedUser = await prisma.user.update({
       where: {
@@ -4274,17 +4650,11 @@ var updateProfileImage = async (userId, file) => {
       }
     });
     if (user.profileImagePublicId) {
-      await cloudinaryService.deleteAsset(
-        user.profileImagePublicId,
-        "image"
-      );
+      await cloudinaryService.deleteAsset(user.profileImagePublicId, "image");
     }
     return updatedUser;
   } catch (error) {
-    await cloudinaryService.deleteAsset(
-      uploadedImage.publicId,
-      "image"
-    );
+    await cloudinaryService.deleteAsset(uploadedImage.publicId, "image");
     throw error;
   }
 };
@@ -4300,15 +4670,12 @@ var deleteProfileImage = async (userId) => {
     }
   });
   if (!user) {
-    throw new Error("User not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "User not found.");
   }
   if (!user.profileImagePublicId) {
-    throw new Error("Profile picture not found.");
+    throw new AppError(StatusCodes22.NOT_FOUND, "Profile picture not found.");
   }
-  await cloudinaryService.deleteAsset(
-    user.profileImagePublicId,
-    "image"
-  );
+  await cloudinaryService.deleteAsset(user.profileImagePublicId, "image");
   const updatedUser = await prisma.user.update({
     where: {
       id: userId
@@ -4342,11 +4709,14 @@ var userService = {
 var getMyProfile2 = catch_async_default(
   async (req, res, next) => {
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     const result = await userService.getMyProfile(req.user.id);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "Profile retrieved successfully",
       data: result
     });
@@ -4355,11 +4725,14 @@ var getMyProfile2 = catch_async_default(
 var updateMyProfile2 = catch_async_default(
   async (req, res, next) => {
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     const result = await userService.updateMyProfile(req.user.id, req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "Profile updated successfully",
       data: result
     });
@@ -4368,11 +4741,14 @@ var updateMyProfile2 = catch_async_default(
 var changePassword2 = catch_async_default(
   async (req, res, next) => {
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     await userService.changePassword(req.user.id, req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "Password changed successfully",
       data: null
     });
@@ -4382,7 +4758,7 @@ var forgotPassword2 = catch_async_default(
   async (req, res, next) => {
     await userService.forgotPassword(req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "If an account with this email exists, a password reset link has been sent.",
       data: null
     });
@@ -4392,7 +4768,7 @@ var resetPassword2 = catch_async_default(
   async (req, res, next) => {
     await userService.resetPassword(req.body);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "Password reset successfully",
       data: null
     });
@@ -4403,13 +4779,17 @@ var updateUserStatus2 = catch_async_default(
     const admin = req.user;
     const adminOrganizationId = admin?.organizationId;
     if (!adminOrganizationId) {
-      throw new Error(
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
         "Admin organization ID is missing in the request context."
       );
     }
     const { userId } = req.params;
     if (!userId) {
-      throw new Error("User ID is required to update user status.");
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
+        "User ID is required to update user status."
+      );
     }
     const result = await userService.updateUserStatus(
       userId,
@@ -4417,7 +4797,7 @@ var updateUserStatus2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "User status updated successfully",
       data: result
     });
@@ -4426,54 +4806,50 @@ var updateUserStatus2 = catch_async_default(
 var deleteMyAccount2 = catch_async_default(
   async (req, res, next) => {
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes23.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     await userService.deleteMyAccount(req.user.id);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
+      statusCode: StatusCodes23.OK,
       message: "Account deleted successfully",
       data: null
     });
   }
 );
-var updateProfileImage2 = catch_async_default(
-  async (req, res) => {
-    if (!req.user?.id) {
-      throw new Error(
-        "User ID is missing in the request context."
-      );
-    }
-    if (!req.file) {
-      throw new Error("Profile picture is required.");
-    }
-    const result = await userService.updateProfileImage(
-      req.user.id,
-      req.file
+var updateProfileImage2 = catch_async_default(async (req, res) => {
+  if (!req.user?.id) {
+    throw new AppError(
+      StatusCodes23.BAD_REQUEST,
+      "User ID is missing in the request context."
     );
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
-      message: "Profile picture updated successfully",
-      data: result
-    });
   }
-);
-var deleteProfileImage2 = catch_async_default(
-  async (req, res) => {
-    if (!req.user?.id) {
-      throw new Error(
-        "User ID is missing in the request context."
-      );
-    }
-    const result = await userService.deleteProfileImage(
-      req.user.id
+  if (!req.file) {
+    throw new AppError(StatusCodes23.BAD_REQUEST, "Profile picture is required.");
+  }
+  const result = await userService.updateProfileImage(req.user.id, req.file);
+  sendSuccessResponse(res, {
+    statusCode: StatusCodes23.OK,
+    message: "Profile picture updated successfully",
+    data: result
+  });
+});
+var deleteProfileImage2 = catch_async_default(async (req, res) => {
+  if (!req.user?.id) {
+    throw new AppError(
+      StatusCodes23.BAD_REQUEST,
+      "User ID is missing in the request context."
     );
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes9.OK,
-      message: "Profile picture deleted successfully",
-      data: result
-    });
   }
-);
+  const result = await userService.deleteProfileImage(req.user.id);
+  sendSuccessResponse(res, {
+    statusCode: StatusCodes23.OK,
+    message: "Profile picture deleted successfully",
+    data: result
+  });
+});
 var userController = {
   getMyProfile: getMyProfile2,
   updateMyProfile: updateMyProfile2,
@@ -4497,13 +4873,10 @@ var changePasswordValidationSchema = z9.object({
   body: z9.object({
     currentPassword: z9.string().min(1, "Current password is required"),
     newPassword: z9.string().min(8, "Password must be at least 8 characters").max(100, "Password cannot exceed 100 characters")
-  }).refine(
-    (data) => data.currentPassword !== data.newPassword,
-    {
-      message: "New password must be different from current password",
-      path: ["newPassword"]
-    }
-  )
+  }).refine((data) => data.currentPassword !== data.newPassword, {
+    message: "New password must be different from current password",
+    path: ["newPassword"]
+  })
 });
 var forgotPasswordValidationSchema = z9.object({
   body: z9.object({
@@ -4519,11 +4892,7 @@ var resetPasswordValidationSchema = z9.object({
 });
 var updateUserStatusValidationSchema = z9.object({
   body: z9.object({
-    status: z9.enum([
-      "ACTIVE",
-      "INACTIVE",
-      "SUSPENDED"
-    ])
+    status: z9.enum(["ACTIVE", "INACTIVE", "SUSPENDED"])
   })
 });
 
@@ -4547,35 +4916,41 @@ router8.get(
 router8.patch(
   "/me",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validate(updateUserProfileValidationSchema),
   userController.updateMyProfile
 );
 router8.patch(
   "/me/password",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validate(changePasswordValidationSchema),
   userController.changePassword
 );
 router8.delete(
   "/me",
   authMiddleware.auth(Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   userController.deleteMyAccount
 );
 router8.patch(
   "/:userId/status",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   validate(updateUserStatusValidationSchema),
   userController.updateUserStatus
 );
 router8.patch(
   "/me/profile-picture",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   uploadImage.single("image"),
   userController.updateProfileImage
 );
 router8.delete(
   "/me/profile-picture",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   userController.deleteProfileImage
 );
 var userRoutes = router8;
@@ -4584,9 +4959,10 @@ var userRoutes = router8;
 import { Router as Router9 } from "express";
 
 // src/app/module/organization/organization.controller.ts
-import { StatusCodes as StatusCodes10 } from "http-status-codes";
+import { StatusCodes as StatusCodes25 } from "http-status-codes";
 
 // src/app/module/organization/organization.service.ts
+import { StatusCodes as StatusCodes24 } from "http-status-codes";
 var getMyOrganization = async (organizationId) => {
   const organization = await prisma.organization.findUnique({
     where: {
@@ -4632,7 +5008,7 @@ var getMyOrganization = async (organizationId) => {
     }
   });
   if (!organization) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization not found.");
   }
   return organization;
 };
@@ -4644,7 +5020,7 @@ var updateOrganization = async (organizationId, payload) => {
     }
   });
   if (!organization) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization not found.");
   }
   if (payload.slug && payload.slug !== organization.slug) {
     const existingOrganization = await prisma.organization.findUnique({
@@ -4653,7 +5029,10 @@ var updateOrganization = async (organizationId, payload) => {
       }
     });
     if (existingOrganization) {
-      throw new Error("An organization with this slug already exists.");
+      throw new AppError(
+        StatusCodes24.CONFLICT,
+        "An organization with this slug already exists."
+      );
     }
   }
   return prisma.organization.update({
@@ -4685,7 +5064,7 @@ var deleteOrganization = async (organizationId) => {
     }
   });
   if (!organization) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization not found.");
   }
   await prisma.organization.update({
     where: {
@@ -4769,7 +5148,7 @@ var getOrganizationMemberById = async (organizationId, memberId) => {
     }
   });
   if (!membership) {
-    throw new Error("Organization member not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization member not found.");
   }
   return membership;
 };
@@ -4781,13 +5160,19 @@ var updateMemberRole = async (organizationId, memberId, payload) => {
     }
   });
   if (!membership) {
-    throw new Error("Organization member not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization member not found.");
   }
   if (membership.role === "ADMIN") {
-    throw new Error("Cannot update the role of an ADMIN member.");
+    throw new AppError(
+      StatusCodes24.BAD_REQUEST,
+      "Cannot update the role of an ADMIN member."
+    );
   }
   if (payload.role === "ADMIN") {
-    throw new Error("Cannot assign ADMIN role to a member.");
+    throw new AppError(
+      StatusCodes24.BAD_REQUEST,
+      "Cannot assign ADMIN role to a member."
+    );
   }
   return prisma.organizationMembership.update({
     where: {
@@ -4818,10 +5203,13 @@ var updateMemberStatus = async (organizationId, memberId, payload) => {
     }
   });
   if (!membership) {
-    throw new Error("Organization member not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization member not found.");
   }
   if (membership?.role === "ADMIN" && payload.status !== "ACTIVE") {
-    throw new Error("Cannot change the status of an Admin.");
+    throw new AppError(
+      StatusCodes24.BAD_REQUEST,
+      "Cannot change the status of an Admin."
+    );
   }
   return prisma.organizationMembership.update({
     where: {
@@ -4852,10 +5240,13 @@ var removeMember = async (organizationId, memberId) => {
     }
   });
   if (!membership) {
-    throw new Error("Organization member not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization member not found.");
   }
   if (membership.role === "ADMIN") {
-    throw new Error("Organization admin cannot be removed directly.");
+    throw new AppError(
+      StatusCodes24.BAD_REQUEST,
+      "Organization admin cannot be removed directly."
+    );
   }
   await prisma.organizationMembership.delete({
     where: {
@@ -4873,10 +5264,16 @@ var leaveOrganization = async (organizationId, userId) => {
     }
   });
   if (!membership) {
-    throw new Error("You are not a member of this organization.");
+    throw new AppError(
+      StatusCodes24.FORBIDDEN,
+      "You are not a member of this organization."
+    );
   }
   if (membership.role === "ADMIN") {
-    throw new Error("Organization admin cannot leave the organization.");
+    throw new AppError(
+      StatusCodes24.BAD_REQUEST,
+      "Organization admin cannot leave the organization."
+    );
   }
   await prisma.organizationMembership.delete({
     where: {
@@ -4896,7 +5293,7 @@ var updateOrganizationLogo = async (organizationId, file) => {
     }
   });
   if (!organization) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization not found.");
   }
   const uploadedLogo = await cloudinaryService.uploadBuffer(file.buffer, {
     folder: `orbrin/organizations/${organizationId}/logo`,
@@ -4949,10 +5346,10 @@ var deleteOrganizationLogo = async (organizationId) => {
     }
   });
   if (!organization) {
-    throw new Error("Organization not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization not found.");
   }
   if (!organization.logoPublicId) {
-    throw new Error("Organization logo not found.");
+    throw new AppError(StatusCodes24.NOT_FOUND, "Organization logo not found.");
   }
   await cloudinaryService.deleteAsset(organization.logoPublicId, "image");
   return prisma.organization.update({
@@ -4991,11 +5388,14 @@ var getMyOrganization2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     console.log("organizationId", req.user);
     if (!organizationId) {
-      throw new Error("Organization ID is missing ");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing "
+      );
     }
     const result = await organizationService.getMyOrganization(organizationId);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization retrieved successfully",
       data: result
     });
@@ -5005,14 +5405,17 @@ var updateOrganization2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await organizationService.updateOrganization(
       organizationId,
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization updated successfully",
       data: result
     });
@@ -5022,11 +5425,14 @@ var deleteOrganization2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     await organizationService.deleteOrganization(organizationId);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization deleted successfully",
       data: null
     });
@@ -5036,7 +5442,10 @@ var getOrganizationMembers2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const query = req.validatedQuery;
     const result = await organizationService.getOrganizationMembers(
@@ -5044,7 +5453,7 @@ var getOrganizationMembers2 = catch_async_default(
       query
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization members retrieved successfully",
       data: result.data,
       pagination: result.pagination
@@ -5056,17 +5465,20 @@ var getOrganizationMemberById2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { memberId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!memberId) {
-      throw new Error("Member ID is required.");
+      throw new AppError(StatusCodes25.BAD_REQUEST, "Member ID is required.");
     }
     const result = await organizationService.getOrganizationMemberById(
       organizationId,
       memberId
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization member retrieved successfully",
       data: result
     });
@@ -5077,10 +5489,13 @@ var updateMemberRole2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { memberId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!memberId) {
-      throw new Error("Member ID is required.");
+      throw new AppError(StatusCodes25.BAD_REQUEST, "Member ID is required.");
     }
     const result = await organizationService.updateMemberRole(
       organizationId,
@@ -5088,7 +5503,7 @@ var updateMemberRole2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Member role updated successfully",
       data: result
     });
@@ -5099,10 +5514,13 @@ var updateMemberStatus2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { memberId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!memberId) {
-      throw new Error("Member ID is required.");
+      throw new AppError(StatusCodes25.BAD_REQUEST, "Member ID is required.");
     }
     const result = await organizationService.updateMemberStatus(
       organizationId,
@@ -5110,7 +5528,7 @@ var updateMemberStatus2 = catch_async_default(
       req.body
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Member status updated successfully",
       data: result
     });
@@ -5121,14 +5539,17 @@ var removeMember2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const { memberId } = req.params;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!memberId) {
-      throw new Error("Member ID is required.");
+      throw new AppError(StatusCodes25.BAD_REQUEST, "Member ID is required.");
     }
     await organizationService.removeMember(organizationId, memberId);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Member removed successfully",
       data: null
     });
@@ -5138,14 +5559,20 @@ var leaveOrganization2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!req.user?.id) {
-      throw new Error("User ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
     }
     await organizationService.leaveOrganization(organizationId, req.user.id);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "You left the organization successfully",
       data: null
     });
@@ -5156,17 +5583,23 @@ var updateOrganizationLogo2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     console.log("organizationId", req.user);
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     if (!req.file) {
-      throw new Error("Organization logo is required.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization logo is required."
+      );
     }
     const result = await organizationService.updateOrganizationLogo(
       organizationId,
       req.file
     );
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization logo updated successfully",
       data: result
     });
@@ -5176,11 +5609,14 @@ var deleteOrganizationLogo2 = catch_async_default(
   async (req, res) => {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
-      throw new Error("Organization ID is missing in the request context.");
+      throw new AppError(
+        StatusCodes25.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
     }
     const result = await organizationService.deleteOrganizationLogo(organizationId);
     sendSuccessResponse(res, {
-      statusCode: StatusCodes10.OK,
+      statusCode: StatusCodes25.OK,
       message: "Organization logo deleted successfully",
       data: result
     });
@@ -5247,6 +5683,7 @@ router9.get(
 router9.patch(
   "/me",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   validate(updateOrganizationValidationSchema),
   organizationController.updateOrganization
 );
@@ -5258,45 +5695,53 @@ router9.delete(
 router9.get(
   "/members",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(organizationMemberQuerySchema),
   organizationController.getOrganizationMembers
 );
 router9.get(
   "/members/:memberId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   organizationController.getOrganizationMemberById
 );
 router9.patch(
   "/members/:memberId/role",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   validate(updateMemberRoleValidationSchema),
   organizationController.updateMemberRole
 );
 router9.patch(
   "/members/:memberId/status",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   validate(updateMemberStatusValidationSchema),
   organizationController.updateMemberStatus
 );
 router9.delete(
   "/members/:memberId",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.removeMember
 );
 router9.post(
   "/leave",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.leaveOrganization
 );
 router9.patch(
   "/me/logo",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   uploadImage.single("image"),
   organizationController.updateOrganizationLogo
 );
 router9.delete(
   "/me/logo",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.deleteOrganizationLogo
 );
 var organizationRoutes = router9;

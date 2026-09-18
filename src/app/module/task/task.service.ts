@@ -1,5 +1,7 @@
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 import type { Prisma } from "../../../../prisma/generated/prisma/client";
 import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
@@ -18,7 +20,7 @@ const createTask = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
 	}
 
 	// Validate status and priority values
@@ -26,7 +28,7 @@ const createTask = async (
 		payload.status &&
 		!["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)
 	) {
-		throw new Error("Invalid status value");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid status value");
 	}
 
 	// Validate priority value
@@ -34,7 +36,7 @@ const createTask = async (
 		payload.priority &&
 		!["LOW", "MEDIUM", "HIGH"].includes(payload.priority)
 	) {
-		throw new Error("Invalid priority value");
+		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid priority value");
 	}
 	const task = await prisma.task.create({
 		data: {
@@ -62,7 +64,7 @@ const getTasksByProject = async (
 	});
 
 	if (!project) {
-		throw new Error("Project not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
 	}
 
 	const {
@@ -122,7 +124,7 @@ const getTaskById = async (organizationId: string, taskId: string) => {
 	});
 
 	if (!task) {
-		throw new Error("Task not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
 	}
 
 	return task;
@@ -148,7 +150,7 @@ const updateTask = async (
 	});
 
 	if (!task) {
-		throw new Error("Task not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
 	}
 
 	if (
@@ -157,12 +159,18 @@ const updateTask = async (
 		role !== Role.ADMIN &&
 		task.assigneeId !== userId
 	) {
-		throw new Error("You are not authorized to update this task");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"You are not authorized to update this task",
+		);
 	}
 
 	console.log("role", role);
 	if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
-		throw new Error("You are not authorized to assign this task");
+		throw new AppError(
+			StatusCodes.FORBIDDEN,
+			"You are not authorized to assign this task",
+		);
 	}
 
 	const updateData: IUpdateTaskPayload = { ...payload };
@@ -193,7 +201,7 @@ const deleteTask = async (organizationId: string, taskId: string) => {
 	});
 
 	if (!task) {
-		throw new Error("Task not found");
+		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
 	}
 
 	const deletedTask = await prisma.task.update({

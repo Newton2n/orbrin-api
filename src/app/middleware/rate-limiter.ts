@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "../lib/redis";
+import { StatusCodes } from "http-status-codes";
 
 const ratelimit = new Ratelimit({
 	redis,
@@ -44,9 +45,10 @@ const rateLimiter = async (
 		res.setHeader("RateLimit-Reset", reset);
 
 		if (!success) {
-			res.status(429).json({
+			res.status(StatusCodes.TOO_MANY_REQUESTS).json({
 				success: false,
-				message: "Rate limit exceeded",
+				statusCode: StatusCodes.TOO_MANY_REQUESTS,
+				message: "Rate limit exceeded.",
 				errors: [
 					{
 						message: "Too many requests. Please try again later.",

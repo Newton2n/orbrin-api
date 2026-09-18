@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
-
 import { prisma } from "../lib/prisma";
 import { SubscriptionStatus } from "../../../prisma/generated/prisma/enums";
+import { AppError } from "../utils/app-error";
+import { StatusCodes } from "http-status-codes";
 
 export const subscriptionCheck = async (
 	req: Request,
@@ -12,11 +13,12 @@ export const subscriptionCheck = async (
 		const organizationId = req.user?.organizationId;
 
 		if (!organizationId) {
-			return res.status(400).json({
-				success: false,
-				message: "Organization context is required.",
-				errors: [],
-			});
+			return next(
+				new AppError(
+					StatusCodes.BAD_REQUEST,
+					"Organization context is required.",
+				),
+			);
 		}
 
 		const subscription = await prisma.subscription.findUnique({
@@ -30,41 +32,39 @@ export const subscriptionCheck = async (
 		});
 
 		if (!subscription) {
-			return res.status(403).json({
-				success: false,
-				message:
+			return next(
+				new AppError(
+					StatusCodes.FORBIDDEN,
 					"No active subscription found. Please subscribe to access this feature.",
-				errors: [],
-			});
+				),
+			);
 		}
 
 		if (subscription.status !== SubscriptionStatus.ACTIVE) {
-			return res.status(403).json({
-				success: false,
-				message: "Please activate your subscription to access this feature.",
-				errors: [],
-			});
+			return next(
+				new AppError(
+					StatusCodes.FORBIDDEN,
+					"Please activate your subscription to access this feature.",
+				),
+			);
 		}
 
 		if (
 			subscription.currentPeriodEnd &&
 			subscription.currentPeriodEnd < new Date()
 		) {
-			return res.status(403).json({
-				success: false,
-				message: "Subscription has expired. Please renew your subscription.",
-				errors: [],
-			});
+			return next(
+				new AppError(
+					StatusCodes.FORBIDDEN,
+					"Subscription has expired. Please renew your subscription.",
+				),
+			);
 		}
 
 		return next();
 	} catch (error) {
 		console.error("Subscription check error:", error);
 
-		return res.status(500).json({
-			success: false,
-			message: "Something went wrong",
-			errors: [],
-		});
+		return next(error);
 	}
 };
