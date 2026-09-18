@@ -21,7 +21,7 @@ router.post(
 // Get Subscription & Payment History for Organization
 router.get(
 	"/history",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
 	emailVerificationMiddleware,
 	validateQuery(subscriptionHistoryQuerySchema),
 	subscriptionController.getSubscriptionHistory,

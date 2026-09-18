@@ -11,7 +11,7 @@ const router = Router();
 // Create a new task for a project
 router.post(
 	"/projects/:projectId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
 	emailVerificationMiddleware,
 	subscriptionCheck,
 	validate(taskValidation.createTaskSchema),

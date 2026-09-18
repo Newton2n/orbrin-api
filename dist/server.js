@@ -3256,7 +3256,7 @@ var taskValidation = {
 var router4 = Router4();
 router4.post(
   "/projects/:projectId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
   emailVerificationMiddleware,
   subscriptionCheck,
   validate(taskValidation.createTaskSchema),
@@ -3719,7 +3719,7 @@ var getCommentsByTask = async (organizationId, taskId, query) => {
     pagination: createPaginationMeta(page, limit, total)
   };
 };
-var updateComment = async (organizationId, userId, commentId, payload) => {
+var updateComment = async (organizationId, userId, commentId, payload, userRole) => {
   const comment = await prisma.comment.findFirst({
     where: {
       id: commentId,
@@ -3736,7 +3736,7 @@ var updateComment = async (organizationId, userId, commentId, payload) => {
   if (!comment) {
     throw new AppError(StatusCodes18.NOT_FOUND, "Comment not found");
   }
-  if (comment.authorId !== userId) {
+  if (comment.authorId !== userId && userRole !== "ADMIN" && userRole !== "MANAGER") {
     throw new AppError(
       StatusCodes18.FORBIDDEN,
       "Unauthorized to update this comment"
@@ -3848,6 +3848,7 @@ var updateComment2 = catch_async_default(
     const organizationId = req.user?.organizationId;
     const userId = req.user?.id;
     const { commentId } = req.params;
+    const role = req.user?.role;
     if (!commentId) {
       throw new AppError(
         StatusCodes19.BAD_REQUEST,
@@ -3858,7 +3859,8 @@ var updateComment2 = catch_async_default(
       organizationId,
       userId,
       commentId,
-      req.body
+      req.body,
+      role
     );
     sendSuccessResponse(res, {
       statusCode: StatusCodes19.OK,
@@ -4328,7 +4330,7 @@ router7.post(
 );
 router7.get(
   "/history",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
   emailVerificationMiddleware,
   validateQuery(subscriptionHistoryQuerySchema),
   subscriptionController.getSubscriptionHistory

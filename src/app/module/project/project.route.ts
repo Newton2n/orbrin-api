@@ -78,6 +78,7 @@ router.delete(
 	projectController.removeTeamFromProject,
 );
 
+// Upload a document for a project
 router.patch(
 	"/:projectId/document",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
@@ -87,6 +88,7 @@ router.patch(
 	projectController.uploadProjectDocument,
 );
 
+// Delete a document for a project
 router.delete(
 	"/:projectId/document",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
