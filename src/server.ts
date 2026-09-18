@@ -10,7 +10,7 @@ async function main() {
 		await prisma.$connect();
 		await seedDatabase();
 		app.listen(port, () => {
-			if (config.node_env !== "development") {
+			if (config.node_env === "development") {
 				console.log("Server is running on port " + port);
 			}
 		});

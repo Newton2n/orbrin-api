@@ -33,7 +33,7 @@ export const handlePaymentSuccess = async (
 
 	const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-	console.log("Stripe subscription:", stripeSub);
+	
 
 	const subscriptionItem = stripeSub.items.data[0];
 
@@ -76,7 +76,7 @@ export const handlePaymentSuccess = async (
 		},
 	});
 
-	console.log("Subscription saved:", subRecord.id);
+	
 
 	return subRecord;
 };
@@ -91,8 +91,7 @@ export const handleInvoicePaymentSucceeded = async (
 		throw new Error(`Invoice ${invoice.id} has no subscription ID`);
 	}
 
-	console.log("Invoice ID:", invoice.id);
-	console.log("Stripe subscription ID:", stripeSubscriptionId);
+	
 
 	// Find local subscription
 	let subscription = await prisma.subscription.findUnique({
@@ -102,9 +101,7 @@ export const handleInvoicePaymentSucceeded = async (
 	});
 
 	if (!subscription) {
-		console.log(
-			"Local subscription not found. Creating it from Stripe subscription.",
-		);
+		
 
 		const stripeSub = await stripe.subscriptions.retrieve(
 			stripeSubscriptionId as string,
@@ -195,7 +192,7 @@ export const handleInvoicePaymentSucceeded = async (
 		},
 	});
 
-	console.log("Payment saved:", payment.id);
+	
 
 	return payment;
 };

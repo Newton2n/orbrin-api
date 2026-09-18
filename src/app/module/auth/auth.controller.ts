@@ -63,7 +63,7 @@ const login = catchAsync(
 const getMe = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const userId = req.user?.id;
-		console.log("user", req.user);
+
 		if (!userId) {
 			throw new AppError(
 				StatusCodes.UNAUTHORIZED,

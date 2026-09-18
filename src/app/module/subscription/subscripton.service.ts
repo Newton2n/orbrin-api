@@ -15,6 +15,7 @@ import {
 } from "../../utils/stripe-event";
 import { AppError } from "../../utils/app-error";
 import { StatusCodes } from "http-status-codes";
+import type { Prisma } from "../../../../prisma/generated/prisma/client";
 
 const createCheckoutSession = async (
 	organizationId: string,
@@ -127,7 +128,7 @@ const webhookHandler = async (payload: Buffer, signature: string) => {
 		}
 
 		case "invoice.payment_succeeded": {
-			console.log("invoice payment succeeded hit");
+			
 
 			const invoice = event.data.object as Stripe.Invoice;
 
@@ -137,7 +138,6 @@ const webhookHandler = async (payload: Buffer, signature: string) => {
 		}
 
 		default: {
-			console.log(`Unhandled Stripe event: ${event.type}`);
 			break;
 		}
 	}
@@ -164,7 +164,7 @@ const getOrganizationSubscriptionHistory = async (
 	}
 
 	const { page, limit, search, sortBy, sortOrder, status } = query;
-	const paymentWhere = {
+	const paymentWhere :Prisma.PaymentWhereInput = {
 		organizationId,
 		...(status ? { status } : {}),
 		...(search

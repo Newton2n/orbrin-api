@@ -18,18 +18,21 @@ import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
 
+// User Authentication Routes
 router.post(
 	"/forgot-password",
 	validate(forgotPasswordValidationSchema),
 	userController.forgotPassword,
 );
 
+// Reset password route
 router.post(
 	"/reset-password",
 	validate(resetPasswordValidationSchema),
 	userController.resetPassword,
 );
 
+// Get current user's profile
 router.get(
 	"/me",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
