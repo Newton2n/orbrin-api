@@ -5,12 +5,14 @@ import { taskValidation } from "./task.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { subscriptionCheck } from "../../middleware/subscription-check";
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 const router = Router();
 
 // Create a new task for a project
 router.post(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(taskValidation.createTaskSchema),
   taskController.createTask,
@@ -20,6 +22,8 @@ router.post(
 router.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getTasksByProject,
 );
@@ -28,6 +32,8 @@ router.get(
 router.get(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   taskController.getTaskById,
 );
 
@@ -35,6 +41,7 @@ router.get(
 router.patch(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(taskValidation.updateTaskSchema),
   taskController.updateTask,
@@ -44,6 +51,7 @@ router.patch(
 router.delete(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   taskController.deleteTask,
 );

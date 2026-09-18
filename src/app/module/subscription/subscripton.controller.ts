@@ -10,13 +10,17 @@ import type { subscriptionHistoryQuerySchema } from "./subscripton.schema";
 const createCheckoutSession = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const organizationId = req.user?.organizationId;
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error("User ID is missing in the request context.");
+    }
 
     if (!organizationId) {
       throw new Error("Organization ID is missing in the request context.");
     }
 
     const result =
-      await subscriptionService.createCheckoutSession(organizationId);
+      await subscriptionService.createCheckoutSession(organizationId,userId);
 
     sendSuccessResponse(res, {
       statusCode: StatusCodes.OK,

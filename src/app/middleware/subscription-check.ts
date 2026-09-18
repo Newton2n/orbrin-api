@@ -32,7 +32,7 @@ export const subscriptionCheck = async (
 		if (!subscription) {
 			return res.status(403).json({
 				success: false,
-				message: "An active subscription is required.",
+				message: "No active subscription found. Please subscribe to access this feature.",
 				errors: [],
 			});
 		}

@@ -10,6 +10,7 @@ import {
   organizationMemberQuerySchema,
 } from "./organization.schema";
 import { uploadImage } from "../../middleware/multer";
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.get(
 router.patch(
   "/me",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   validate(updateOrganizationValidationSchema),
   organizationController.updateOrganization,
 );
@@ -39,6 +41,7 @@ router.delete(
 router.get(
   "/members",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(organizationMemberQuerySchema),
   organizationController.getOrganizationMembers,
 );
@@ -47,6 +50,7 @@ router.get(
 router.get(
   "/members/:memberId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   organizationController.getOrganizationMemberById,
 );
 
@@ -54,6 +58,7 @@ router.get(
 router.patch(
   "/members/:memberId/role",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   validate(updateMemberRoleValidationSchema),
   organizationController.updateMemberRole,
 );
@@ -62,6 +67,7 @@ router.patch(
 router.patch(
   "/members/:memberId/status",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   validate(updateMemberStatusValidationSchema),
   organizationController.updateMemberStatus,
 );
@@ -70,6 +76,7 @@ router.patch(
 router.delete(
   "/members/:memberId",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.removeMember,
 );
 
@@ -77,19 +84,24 @@ router.delete(
 router.post(
   "/leave",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.leaveOrganization,
 );
 
+// update organization logo
 router.patch(
   "/me/logo",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   uploadImage.single("image"),
   organizationController.updateOrganizationLogo,
 );
 
+// delete organization logo
 router.delete(
   "/me/logo",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   organizationController.deleteOrganizationLogo,
 );
 

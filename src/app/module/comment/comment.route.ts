@@ -6,6 +6,7 @@ import { commentValidation } from "./comment.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { subscriptionCheck } from "../../middleware/subscription-check";
 import { Role } from "../../../../prisma/generated/prisma/enums";
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.post(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   subscriptionCheck,
+  emailVerificationMiddleware,
   validate(commentValidation.createCommentSchema),
   commentController.createComment,
 );
@@ -22,6 +24,7 @@ router.post(
 router.get(
   "/tasks/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(commentValidation.commentQuerySchema),
   commentController.getCommentsByTask,
 );
@@ -30,6 +33,7 @@ router.get(
 router.patch(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(commentValidation.updateCommentSchema),
   commentController.updateComment,
@@ -39,6 +43,7 @@ router.patch(
 router.delete(
   "/:commentId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   commentController.deleteComment,
 );

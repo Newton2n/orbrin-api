@@ -6,6 +6,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { subscriptionCheck } from "../../middleware/subscription-check";
 import { uploadPdf } from "../../middleware/multer";
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
 
@@ -13,6 +14,8 @@ const router = Router();
 router.post(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   uploadPdf.single("document"),
   validate(projectValidation.createProjectSchema),
   projectController.createProject,
@@ -22,6 +25,8 @@ router.post(
 router.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   validateQuery(projectValidation.projectQuerySchema),
   projectController.getAllProjects,
 );
@@ -30,6 +35,8 @@ router.get(
 router.get(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   projectController.getProjectById,
 );
 
@@ -37,6 +44,7 @@ router.get(
 router.patch(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(projectValidation.updateProjectSchema),
   projectController.updateProject,
@@ -46,6 +54,7 @@ router.patch(
 router.delete(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   projectController.deleteProject,
 );
@@ -54,6 +63,7 @@ router.delete(
 router.post(
   "/:projectId/teams",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   validate(projectValidation.assignTeamSchema),
   projectController.assignTeamToProject,
@@ -63,6 +73,7 @@ router.post(
 router.delete(
   "/:projectId/teams/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
   subscriptionCheck,
   projectController.removeTeamFromProject,
 );
@@ -70,6 +81,8 @@ router.delete(
 router.patch(
   "/:projectId/document",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   uploadPdf.single("document"),
   projectController.uploadProjectDocument,
 );
@@ -77,6 +90,8 @@ router.patch(
 router.delete(
   "/:projectId/document",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
   projectController.deleteProjectDocument,
 );
 

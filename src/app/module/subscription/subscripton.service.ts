@@ -14,14 +14,36 @@ import {
   handlePaymentSuccess,
 } from "../../utils/stripe-event";
 
-const createCheckoutSession = async (organizationId: string) => {
+const createCheckoutSession = async (
+  organizationId: string,
+  userId: string,
+) => {
   const organization = await prisma.organization.findUnique({
-    where: { id: organizationId, deletedAt: null },
+    where: {
+      id: organizationId,
+      deletedAt: null,
+      memberships: {
+        some: { userId },
+      },
+    },
     include: { subscriptions: true },
   });
 
   if (!organization) {
     throw new Error("Organization not found");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId, deletedAt: null },
+    include: { memberships: { where: { organizationId } } },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (user.memberships[0].role !== "ADMIN") {
+    throw new Error("Only ADMIN users can create a subscription.");
   }
 
   const subscription = organization.subscriptions;

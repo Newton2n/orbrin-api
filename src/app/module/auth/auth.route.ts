@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authController } from "./auth.controller";
 import { validate } from "../../middleware/validate";
-import { authValidation } from "./auth.schema";
+import { authValidation, sendVerificationEmailValidationSchema, verifyEmailValidationSchema } from "./auth.schema";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 
@@ -49,4 +49,17 @@ router.post(
 	authController.googleLogin,
 );
 
+// Send verification email route
+router.post(
+  "/send-verification-email",
+  validate(sendVerificationEmailValidationSchema),
+  authController.sendVerificationEmail,
+);
+
+// Verify email route
+router.post(
+  "/verify-email",
+  validate(verifyEmailValidationSchema),
+  authController.verifyEmail,
+);
 export const authRoutes = router;

@@ -66,8 +66,28 @@ const sendPasswordResetOtpEmail = async ({
     html,
   });
 };
+const sendEmailVerificationOtpEmail = async ({
+  to,
+  fullName,
+  otp,
+}: {
+  to: string;
+  fullName: string;
+  otp: string;
+}) => {
+  const html = await renderTemplate("verify-email.ejs", {
+    fullName,
+    otp,
+  });
 
+  await sendEmail({
+    to,
+    subject: "Verify your Orbrin email address",
+    html,
+  });
+};
 export const mailService = {
   sendEmail,
   sendPasswordResetOtpEmail,
+  sendEmailVerificationOtpEmail,
 };

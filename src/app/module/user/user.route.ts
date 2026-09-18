@@ -14,6 +14,7 @@ import {
 } from "./user.schema";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { uploadImage } from "../../middleware/multer";
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
 
@@ -39,6 +40,7 @@ router.get(
 router.patch(
   "/me",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validate(updateUserProfileValidationSchema),
   userController.updateMyProfile,
 );
@@ -47,6 +49,7 @@ router.patch(
 router.patch(
   "/me/password",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validate(changePasswordValidationSchema),
   userController.changePassword,
 );
@@ -55,6 +58,7 @@ router.patch(
 router.delete(
   "/me",
   authMiddleware.auth(Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   userController.deleteMyAccount,
 );
 
@@ -62,20 +66,25 @@ router.delete(
 router.patch(
   "/:userId/status",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   validate(updateUserStatusValidationSchema),
   userController.updateUserStatus,
 );
 
+// Update user profile picture
 router.patch(
   "/me/profile-picture",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   uploadImage.single("image"),
   userController.updateProfileImage,
 );
 
+// Delete user profile picture
 router.delete(
   "/me/profile-picture",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   userController.deleteProfileImage,
 );
 

@@ -5,7 +5,7 @@ import { validate, validateQuery } from "../../middleware/validate";
 import { authMiddleware } from "../../middleware/auth";
 import { Role } from "../../../../prisma/generated/prisma/enums";
 import { subscriptionHistoryQuerySchema } from "./subscripton.schema";
-
+import { emailVerificationMiddleware } from "../../middleware/email-verified";
 const router = Router();
 
 router.post("/webhook", subscriptionController.webhookHandler);
@@ -14,6 +14,7 @@ router.post("/webhook", subscriptionController.webhookHandler);
 router.post(
   "/checkout",
   authMiddleware.auth(Role.ADMIN),
+  emailVerificationMiddleware,
   subscriptionController.createCheckoutSession,
 );
 
@@ -21,6 +22,7 @@ router.post(
 router.get(
   "/history",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
   validateQuery(subscriptionHistoryQuerySchema),
   subscriptionController.getSubscriptionHistory,
 );

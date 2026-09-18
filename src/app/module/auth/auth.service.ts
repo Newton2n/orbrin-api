@@ -6,8 +6,13 @@ import type {
   TLoginBody,
   TRegisterMemberBody,
   TRegisterOrgOwnerBody,
+  TSendVerificationEmail,
+  TVerifyEmail,
 } from "./auth.interface";
 import { verifyGoogleToken } from "../../lib/google";
+import { redis } from "../../lib/redis";
+import { mailService } from "../../services/mail";
+import crypto from "node:crypto";
 
 const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
   const existingUser = await prisma.user.findUnique({
@@ -375,6 +380,105 @@ const googleLogin = async (idToken: string, defaultOrganizationId?: string) => {
   };
 };
 
+const sendVerificationEmail = async (
+  payload: TSendVerificationEmail,
+) => {
+  const email = payload.email.trim().toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+      deletedAt: null,
+    },
+  });
+
+  // Don't reveal whether the email exists.
+  if (!user) {
+    return;
+  }
+
+  if (user.emailVerified) {
+    return;
+  }
+
+  const otp = crypto.randomInt(100000, 1000000).toString();
+
+  const hashedOtp = crypto
+    .createHash("sha256")
+    .update(otp)
+    .digest("hex");
+
+  const VERIFY_EMAIL_OTP_EXPIRY = 60 * 5; // 5 minutes
+
+  const redisKey = `orbrin:email-verification-otp:${user.id}`;
+
+  await redis.set(redisKey, hashedOtp, {
+    ex: VERIFY_EMAIL_OTP_EXPIRY,
+  });
+
+  await mailService.sendEmailVerificationOtpEmail({
+    to: user.email,
+    fullName: user.fullName,
+    otp,
+  });
+};
+
+const verifyEmail = async (payload: TVerifyEmail) => {
+  const email = payload.email.trim().toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+      deletedAt: null,
+    },
+  });
+
+  if (!user) {
+    throw new Error("Invalid email or OTP.");
+  }
+
+  if (user.emailVerified) {
+    throw new Error("Email is already verified.");
+  }
+
+  const hashedOtp = crypto
+    .createHash("sha256")
+    .update(payload.otp)
+    .digest("hex");
+
+  const redisKey = `orbrin:email-verification-otp:${user.id}`;
+
+  const storedOtp = await redis.get<string>(redisKey);
+
+  if (!storedOtp || storedOtp !== hashedOtp) {
+    throw new Error("Invalid or expired OTP.");
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      emailVerified: true,
+    },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      emailVerified: true,
+      status: true,
+      authProvider: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  // Make OTP single-use
+  await redis.del(redisKey);
+
+  return updatedUser;
+};
+
 export const authService = {
   registerOrgOwner,
   registerMember,
@@ -382,4 +486,6 @@ export const authService = {
   getMe,
   refreshToken,
   googleLogin,
+  sendVerificationEmail,
+  verifyEmail,
 };
