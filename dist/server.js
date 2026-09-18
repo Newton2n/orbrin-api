@@ -1425,7 +1425,6 @@ var login2 = catch_async_default(
 var getMe2 = catch_async_default(
   async (req, res, next) => {
     const userId = req.user?.id;
-    console.log("user", req.user);
     if (!userId) {
       throw new AppError(
         StatusCodes6.UNAUTHORIZED,
@@ -2991,7 +2990,6 @@ var updateTask = async (organizationId, taskId, payload, userId, role) => {
       "You are not authorized to update this task"
     );
   }
-  console.log("role", role);
   if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
     throw new AppError(
       StatusCodes14.FORBIDDEN,
@@ -3979,7 +3977,6 @@ var handlePaymentSuccess = async (session) => {
     throw new Error("Missing Stripe subscription ID from Checkout session");
   }
   const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-  console.log("Stripe subscription:", stripeSub);
   const subscriptionItem = stripeSub.items.data[0];
   if (!subscriptionItem) {
     throw new Error(`No subscription item found for ${stripeSub.id}`);
@@ -4013,7 +4010,6 @@ var handlePaymentSuccess = async (session) => {
       currentPeriodEnd
     }
   });
-  console.log("Subscription saved:", subRecord.id);
   return subRecord;
 };
 var handleInvoicePaymentSucceeded = async (invoice) => {
@@ -4021,17 +4017,12 @@ var handleInvoicePaymentSucceeded = async (invoice) => {
   if (!stripeSubscriptionId) {
     throw new Error(`Invoice ${invoice.id} has no subscription ID`);
   }
-  console.log("Invoice ID:", invoice.id);
-  console.log("Stripe subscription ID:", stripeSubscriptionId);
   let subscription = await prisma.subscription.findUnique({
     where: {
       subscriptionId: stripeSubscriptionId
     }
   });
   if (!subscription) {
-    console.log(
-      "Local subscription not found. Creating it from Stripe subscription."
-    );
     const stripeSub = await stripe.subscriptions.retrieve(
       stripeSubscriptionId
     );
@@ -4099,7 +4090,6 @@ var handleInvoicePaymentSucceeded = async (invoice) => {
       status: PaymentStatus.COMPLETED
     }
   });
-  console.log("Payment saved:", payment.id);
   return payment;
 };
 
@@ -4195,13 +4185,11 @@ var webhookHandler = async (payload, signature) => {
       break;
     }
     case "invoice.payment_succeeded": {
-      console.log("invoice payment succeeded hit");
       const invoice = event.data.object;
       await handleInvoicePaymentSucceeded(invoice);
       break;
     }
     default: {
-      console.log(`Unhandled Stripe event: ${event.type}`);
       break;
     }
   }
@@ -5383,7 +5371,6 @@ var organizationService = {
 var getMyOrganization2 = catch_async_default(
   async (req, res, next) => {
     const organizationId = req.user?.organizationId;
-    console.log("organizationId", req.user);
     if (!organizationId) {
       throw new AppError(
         StatusCodes25.BAD_REQUEST,
@@ -5578,7 +5565,6 @@ var leaveOrganization2 = catch_async_default(
 var updateOrganizationLogo2 = catch_async_default(
   async (req, res) => {
     const organizationId = req.user?.organizationId;
-    console.log("organizationId", req.user);
     if (!organizationId) {
       throw new AppError(
         StatusCodes25.BAD_REQUEST,
@@ -5781,7 +5767,9 @@ var seedDatabase = async () => {
       }
     });
     if (existingUser) {
-      console.log("\u{1F331} Demo user already exists. Skipping seed.");
+      if (config_default.node_env === "development") {
+        console.log("\u{1F331} Demo user already exists. Skipping seed.");
+      }
       return;
     }
     const hashedPassword = await bcrypt3.hash(
@@ -5811,10 +5799,14 @@ var seedDatabase = async () => {
           status: "ACTIVE"
         }
       });
-      console.log("Org seeded");
+      if (config_default.node_env === "development") {
+        console.log("Orbrin demo user and organization seeded successfully.");
+      }
     });
   } catch (error) {
-    console.error("Database seed failed:", error);
+    if (config_default.node_env === "development") {
+      console.error("Database seed failed:", error);
+    }
   }
 };
 var seed_default = seedDatabase;
@@ -5826,7 +5818,7 @@ async function main() {
     await prisma.$connect();
     await seed_default();
     app_default.listen(port, () => {
-      if (config_default.node_env !== "development") {
+      if (config_default.node_env === "development") {
         console.log("Server is running on port " + port);
       }
     });
