@@ -645,34 +645,34 @@ import { ZodError } from "zod";
 
 // src/app/utils/app-error.ts
 var AppError = class extends Error {
-  statusCode;
-  isOperational = true;
-  constructor(statusCode, message) {
+  constructor(statusCode, message, errors = []) {
     super(message);
-    this.name = "AppError";
     this.statusCode = statusCode;
+    this.errors = errors;
+    this.name = "AppError";
     Error.captureStackTrace(this, this.constructor);
   }
+  statusCode;
+  errors;
 };
 
 // src/app/middleware/global-error.ts
 var globalError = (err, _req, res, _next) => {
   let statusCode = StatusCodes2.INTERNAL_SERVER_ERROR;
   let message = "Internal server error.";
-  let errors;
+  let errors = [];
   if (!(err instanceof AppError)) {
     console.error("Unexpected error:", err);
   }
   if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+    errors = err.errors;
   } else if (err instanceof ZodError) {
     statusCode = StatusCodes2.BAD_REQUEST;
     message = "Validation failed.";
     errors = err.issues.map((issue) => ({
-      field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join(
-        "."
-      ),
+      field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join("."),
       message: issue.message
     }));
   } else if (err instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
@@ -712,7 +712,7 @@ var globalError = (err, _req, res, _next) => {
     success: false,
     statusCode,
     message,
-    ...errors ? { errors } : {}
+    errors
   });
 };
 var global_error_default = globalError;
@@ -1494,29 +1494,26 @@ var googleLogin2 = catch_async_default(
     });
   }
 );
-var sendVerificationEmail2 = async (req, res, next) => {
-  try {
+var sendVerificationEmail2 = catch_async_default(
+  async (req, res, next) => {
     await authService.sendVerificationEmail(req.body);
-    res.status(200).json({
-      status: "success",
-      message: "If the account exists and is not verified, a verification code has been sent."
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
+      message: "If the account exists and is not verified, a verification code has been sent.",
+      data: null
     });
-  } catch (error) {
-    next(error);
   }
-};
-var verifyEmail2 = async (req, res, next) => {
-  try {
+);
+var verifyEmail2 = catch_async_default(
+  async (req, res, next) => {
     const result = await authService.verifyEmail(req.body);
-    res.status(200).json({
-      status: "success",
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes6.OK,
       message: "Email verified successfully.",
       data: result
     });
-  } catch (error) {
-    next(error);
   }
-};
+);
 var authController = {
   registerOrgOwner: registerOrgOwner2,
   registerMember: registerMember2,
