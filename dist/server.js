@@ -3981,21 +3981,6 @@ var sendEmail = async ({
     html
   });
 };
-var sendPasswordResetEmail = async ({
-  to,
-  fullName,
-  resetUrl
-}) => {
-  const html = await renderTemplate("reset-password.ejs", {
-    fullName,
-    resetUrl
-  });
-  await sendEmail({
-    to,
-    subject: "Reset your Orbrin password",
-    html
-  });
-};
 var sendPasswordResetOtpEmail = async ({
   to,
   fullName,
@@ -4013,7 +3998,6 @@ var sendPasswordResetOtpEmail = async ({
 };
 var mailService = {
   sendEmail,
-  sendPasswordResetEmail,
   sendPasswordResetOtpEmail
 };
 

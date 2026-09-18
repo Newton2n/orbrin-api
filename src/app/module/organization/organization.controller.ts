@@ -6,7 +6,7 @@ import { sendSuccessResponse } from "../../utils/response";
 
 import { organizationService } from "./organization.service";
 import type { z } from "zod";
-import { organizationMemberQuerySchema } from "./organization.schema";
+import type { organizationMemberQuerySchema } from "./organization.schema";
 
 const getMyOrganization = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {

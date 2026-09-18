@@ -5,90 +5,69 @@ import nodemailer from "nodemailer";
 import config from "../../config";
 
 export const transporter = nodemailer.createTransport({
-	service: "gmail",
-	auth: {
-		user: config.smtp_user,
-		pass: config.smtp_password,
-	},
+  service: "gmail",
+  auth: {
+    user: config.smtp_user,
+    pass: config.smtp_password,
+  },
 });
 
 const renderTemplate = async (
-	templateName: string,
-	data: Record<string, unknown>,
+  templateName: string,
+  data: Record<string, unknown>,
 ) => {
-	const templatePath = path.join(
-		process.cwd(),
-		"src",
-        "app",
-		"services",
-		"mail",
-		"templates",
-		templateName,
-	);
+  const templatePath = path.join(
+    process.cwd(),
+    "src",
+    "app",
+    "services",
+    "mail",
+    "templates",
+    templateName,
+  );
 
-	return ejs.renderFile(templatePath, data);
+  return ejs.renderFile(templatePath, data);
 };
 
 const sendEmail = async ({
-	to,
-	subject,
-	html,
+  to,
+  subject,
+  html,
 }: {
-	to: string;
-	subject: string;
-	html: string;
+  to: string;
+  subject: string;
+  html: string;
 }) => {
-	await transporter.sendMail({
-		from: `"Orbrin" <${config.smtp_user}>`,
-		to,
-		subject,
-		html,
-	});
+  await transporter.sendMail({
+    from: `"Orbrin" <${config.smtp_user}>`,
+    to,
+    subject,
+    html,
+  });
 };
 
-const sendPasswordResetEmail = async ({
-	to,
-	fullName,
-	resetUrl,
-}: {
-	to: string;
-	fullName: string;
-	resetUrl: string;
-}) => {
-	const html = await renderTemplate("reset-password.ejs", {
-		fullName,
-		resetUrl,
-	});
-
-	await sendEmail({
-		to,
-		subject: "Reset your Orbrin password",
-		html,
-	});
-};
 const sendPasswordResetOtpEmail = async ({
-	to,
-	fullName,
-	otp,
+  to,
+  fullName,
+  otp,
 }: {
-	to: string;
-	fullName: string;
-	otp: string;
+  to: string;
+  fullName: string;
+  otp: string;
 }) => {
-	const html = await renderTemplate("reset-password.ejs", {
-		fullName,
-		otp,
-	});
+  const html = await renderTemplate("reset-password.ejs", {
+    fullName,
+    otp,
+  });
 
-	await sendEmail({
-		to,
-		subject: "Your Orbrin password reset code",
-		html,
-	});
+  await sendEmail({
+    to,
+    subject: "Your Orbrin password reset code",
+    html,
+  });
 };
 
 export const mailService = {
-	sendEmail,
-	sendPasswordResetEmail,
-	sendPasswordResetOtpEmail,
+  sendEmail,
+  sendPasswordResetOtpEmail,
 };

@@ -1,4 +1,4 @@
-import { OrganizationMembershipStatus, Role } from "../../../../prisma/generated/prisma/enums";
+import type { OrganizationMembershipStatus, Role } from "../../../../prisma/generated/prisma/enums";
 export interface TCreateOrganization {
   name: string;
   slug: string;

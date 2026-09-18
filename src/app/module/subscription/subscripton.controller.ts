@@ -4,7 +4,7 @@ import { subscriptionService } from "./subscripton.service";
 import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import type { z } from "zod";
-import { subscriptionHistoryQuerySchema } from "./subscripton.schema";
+import type { subscriptionHistoryQuerySchema } from "./subscripton.schema";
 
 // Create Stripe Checkout Session
 const createCheckoutSession = catchAsync(

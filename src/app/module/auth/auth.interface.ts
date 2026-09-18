@@ -10,3 +10,7 @@ export type TLoginBody = z.infer<typeof authValidation.loginSchema>["body"];
 export type TGoogleLoginBody = z.infer<
 	typeof authValidation.googleLoginSchema
 >["body"];
+export type TVerifyEmail = {
+  email: string;
+  otp: string;
+};
