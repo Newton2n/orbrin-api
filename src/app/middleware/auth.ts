@@ -8,8 +8,6 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/app-error";
 import { StatusCodes } from "http-status-codes";
 
-
-
 const auth = (...requiredRoles: Role[]) => {
 	return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
 		// 1. Get access token via cookies or headers

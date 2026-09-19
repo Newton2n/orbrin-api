@@ -1,13 +1,13 @@
 export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public errors: unknown[] = [],
-  ) {
-    super(message);
+	constructor(
+		public statusCode: number,
+		message: string,
+		public errors: unknown[] = [],
+	) {
+		super(message);
 
-    this.name = "AppError";
+		this.name = "AppError";
 
-    Error.captureStackTrace(this, this.constructor);
-  }
+		Error.captureStackTrace(this, this.constructor);
+	}
 }

@@ -33,8 +33,6 @@ export const handlePaymentSuccess = async (
 
 	const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-	
-
 	const subscriptionItem = stripeSub.items.data[0];
 
 	if (!subscriptionItem) {
@@ -76,8 +74,6 @@ export const handlePaymentSuccess = async (
 		},
 	});
 
-	
-
 	return subRecord;
 };
 
@@ -91,8 +87,6 @@ export const handleInvoicePaymentSucceeded = async (
 		throw new Error(`Invoice ${invoice.id} has no subscription ID`);
 	}
 
-	
-
 	// Find local subscription
 	let subscription = await prisma.subscription.findUnique({
 		where: {
@@ -101,8 +95,6 @@ export const handleInvoicePaymentSucceeded = async (
 	});
 
 	if (!subscription) {
-		
-
 		const stripeSub = await stripe.subscriptions.retrieve(
 			stripeSubscriptionId as string,
 		);
@@ -191,8 +183,6 @@ export const handleInvoicePaymentSucceeded = async (
 			status: PaymentStatus.COMPLETED,
 		},
 	});
-
-	
 
 	return payment;
 };

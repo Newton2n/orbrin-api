@@ -16,7 +16,6 @@ import crypto from "node:crypto";
 import { AppError } from "../../utils/app-error";
 import { StatusCodes } from "http-status-codes";
 
-
 const registerOrgOwner = async (payload: TRegisterOrgOwnerBody) => {
 	const existingUser = await prisma.user.findUnique({
 		where: { email: payload.email },

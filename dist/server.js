@@ -672,7 +672,9 @@ var globalError = (err, _req, res, _next) => {
     statusCode = StatusCodes2.BAD_REQUEST;
     message = "Validation failed.";
     errors = err.issues.map((issue) => ({
-      field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join("."),
+      field: (issue.path[0] === "body" ? issue.path.slice(1) : issue.path).join(
+        "."
+      ),
       message: issue.message
     }));
   } else if (err instanceof prismaNamespace_exports.PrismaClientKnownRequestError) {
@@ -1851,12 +1853,141 @@ var deleteTeam = async (organizationId, teamId) => {
   });
   return updatedTeam;
 };
+var addTeamMember = async (organizationId, teamId, userId) => {
+  const team = await prisma.team.findFirst({
+    where: {
+      id: teamId,
+      organizationId,
+      deletedAt: null
+    }
+  });
+  if (!team) {
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found.");
+  }
+  const userMembership = await prisma.organizationMembership.findFirst({
+    where: {
+      organizationId,
+      userId,
+      status: "ACTIVE"
+    }
+  });
+  if (!userMembership) {
+    throw new AppError(
+      StatusCodes8.BAD_REQUEST,
+      "User is not an active member of this organization."
+    );
+  }
+  const existingMembership = await prisma.teamMembership.findUnique({
+    where: {
+      teamId_userId: {
+        teamId,
+        userId
+      }
+    }
+  });
+  if (existingMembership) {
+    throw new AppError(
+      StatusCodes8.CONFLICT,
+      "User is already a member of this team."
+    );
+  }
+  const teamMembership = await prisma.teamMembership.create({
+    data: {
+      teamId,
+      userId
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          profileImageUrl: true
+        }
+      }
+    }
+  });
+  return teamMembership;
+};
+var getTeamMembers = async (organizationId, teamId) => {
+  const team = await prisma.team.findFirst({
+    where: {
+      id: teamId,
+      organizationId,
+      deletedAt: null
+    }
+  });
+  if (!team) {
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found.");
+  }
+  const members = await prisma.teamMembership.findMany({
+    where: {
+      teamId,
+      user: {
+        deletedAt: null
+      }
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          profileImageUrl: true,
+          status: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "asc"
+    }
+  });
+  return members;
+};
+var removeTeamMember = async (organizationId, teamId, userId) => {
+  const team = await prisma.team.findFirst({
+    where: {
+      id: teamId,
+      organizationId,
+      deletedAt: null
+    }
+  });
+  if (!team) {
+    throw new AppError(StatusCodes8.NOT_FOUND, "Team not found.");
+  }
+  const membership = await prisma.teamMembership.findUnique({
+    where: {
+      teamId_userId: {
+        teamId,
+        userId
+      }
+    }
+  });
+  if (!membership) {
+    throw new AppError(
+      StatusCodes8.NOT_FOUND,
+      "User is not a member of this team."
+    );
+  }
+  await prisma.teamMembership.delete({
+    where: {
+      teamId_userId: {
+        teamId,
+        userId
+      }
+    }
+  });
+  return null;
+};
 var teamService = {
   createTeam,
   getAllTeams,
   getTeamById,
   updateTeam,
-  deleteTeam
+  deleteTeam,
+  addTeamMember,
+  getTeamMembers,
+  removeTeamMember
 };
 
 // src/app/module/team/team.controller.ts
@@ -1985,12 +2116,69 @@ var deleteTeam2 = catch_async_default(
     });
   }
 );
+var addTeamMember2 = async (req, res, next) => {
+  try {
+    const { teamId } = req.params;
+    const { userId } = req.body;
+    const organizationId = req.user.organizationId;
+    const result = await teamService.addTeamMember(
+      organizationId,
+      teamId,
+      userId
+    );
+    res.status(StatusCodes9.CREATED).json({
+      success: true,
+      message: "Member added to team successfully.",
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+var getTeamMembers2 = async (req, res, next) => {
+  try {
+    const { teamId } = req.params;
+    const organizationId = req.user.organizationId;
+    const result = await teamService.getTeamMembers(
+      organizationId,
+      teamId
+    );
+    res.status(StatusCodes9.OK).json({
+      success: true,
+      message: "Team members retrieved successfully.",
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+var removeTeamMember2 = async (req, res, next) => {
+  try {
+    const { teamId, userId } = req.params;
+    const organizationId = req.user.organizationId;
+    await teamService.removeTeamMember(
+      organizationId,
+      teamId,
+      userId
+    );
+    res.status(StatusCodes9.OK).json({
+      success: true,
+      message: "Member removed from team successfully.",
+      data: null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 var teamController = {
   createTeam: createTeam2,
   getAllTeams: getAllTeams2,
   getTeamById: getTeamById2,
   updateTeam: updateTeam2,
-  deleteTeam: deleteTeam2
+  deleteTeam: deleteTeam2,
+  addTeamMember: addTeamMember2,
+  getTeamMembers: getTeamMembers2,
+  removeTeamMember: removeTeamMember2
 };
 
 // src/app/module/team/team.schema.ts
@@ -2024,10 +2212,29 @@ var teamQuerySchema = paginationQuerySchema.extend({
   sortBy: z3.enum(["name", "createdAt", "updatedAt"]).default("createdAt"),
   sortOrder: sortOrderSchema.default("desc")
 });
+var addTeamMemberValidationSchema = z3.object({
+  body: z3.object({
+    userId: z3.uuid("Invalid user ID.")
+  })
+});
+var teamMemberParamsValidationSchema = z3.object({
+  params: z3.object({
+    teamId: z3.uuid("Invalid team ID.")
+  })
+});
+var removeTeamMemberValidationSchema = z3.object({
+  params: z3.object({
+    teamId: z3.uuid("Invalid team ID."),
+    userId: z3.uuid("Invalid user ID.")
+  })
+});
 var teamValidation = {
   createTeamSchema,
   updateTeamSchema,
-  teamQuerySchema
+  teamQuerySchema,
+  addTeamMemberValidationSchema,
+  teamMemberParamsValidationSchema,
+  removeTeamMemberValidationSchema
 };
 
 // src/app/middleware/subscription-check.ts
@@ -2129,6 +2336,28 @@ router2.get(
   subscriptionCheck,
   validateQuery(teamValidation.teamQuerySchema),
   teamController.getAllTeams
+);
+router2.get(
+  "/:teamId/members",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
+  teamController.getTeamMembers
+);
+router2.post(
+  "/:teamId/members",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
+  validate(teamValidation.addTeamMemberValidationSchema),
+  teamController.addTeamMember
+);
+router2.delete(
+  "/:teamId/members/:userId",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
+  teamController.removeTeamMember
 );
 router2.get(
   "/:teamId",

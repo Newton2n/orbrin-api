@@ -141,27 +141,28 @@ const googleLogin = catchAsync(
 	},
 );
 const sendVerificationEmail = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-        await authService.sendVerificationEmail(req.body);
+	async (req: Request, res: Response, next: NextFunction) => {
+		await authService.sendVerificationEmail(req.body);
 
-        sendSuccessResponse(res, {
-            statusCode: StatusCodes.OK,
-            message: "If the account exists and is not verified, a verification code has been sent.",
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message:
+				"If the account exists and is not verified, a verification code has been sent.",
 			data: null,
-        });
-    },
+		});
+	},
 );
 
 const verifyEmail = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-        const result = await authService.verifyEmail(req.body);
+	async (req: Request, res: Response, next: NextFunction) => {
+		const result = await authService.verifyEmail(req.body);
 
-        sendSuccessResponse(res, {
-            statusCode: StatusCodes.OK,
-            message: "Email verified successfully.",
-            data: result,
-        });
-    },
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Email verified successfully.",
+			data: result,
+		});
+	},
 );
 export const authController = {
 	registerOrgOwner,

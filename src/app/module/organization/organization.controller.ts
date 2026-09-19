@@ -12,7 +12,7 @@ import { AppError } from "../../utils/app-error";
 const getMyOrganization = catchAsync(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const organizationId = req.user?.organizationId;
-	
+
 		if (!organizationId) {
 			throw new AppError(
 				StatusCodes.BAD_REQUEST,
@@ -249,8 +249,6 @@ const leaveOrganization = catchAsync(
 const updateOrganizationLogo = catchAsync(
 	async (req: Request, res: Response) => {
 		const organizationId = req.user?.organizationId;
-
-	
 
 		if (!organizationId) {
 			throw new AppError(

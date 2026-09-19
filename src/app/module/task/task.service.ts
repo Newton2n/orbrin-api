@@ -165,7 +165,6 @@ const updateTask = async (
 		);
 	}
 
-	
 	if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
 		throw new AppError(
 			StatusCodes.FORBIDDEN,

@@ -128,8 +128,6 @@ const webhookHandler = async (payload: Buffer, signature: string) => {
 		}
 
 		case "invoice.payment_succeeded": {
-			
-
 			const invoice = event.data.object as Stripe.Invoice;
 
 			await handleInvoicePaymentSucceeded(invoice);
@@ -164,7 +162,7 @@ const getOrganizationSubscriptionHistory = async (
 	}
 
 	const { page, limit, search, sortBy, sortOrder, status } = query;
-	const paymentWhere :Prisma.PaymentWhereInput = {
+	const paymentWhere: Prisma.PaymentWhereInput = {
 		organizationId,
 		...(status ? { status } : {}),
 		...(search

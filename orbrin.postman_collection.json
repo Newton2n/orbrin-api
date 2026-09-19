@@ -386,11 +386,26 @@
               "host": ["{{baseUrl}}"],
               "path": ["{{apiPrefix}}", "teams"],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" },
-                { "key": "search", "value": "frontend" },
-                { "key": "sortBy", "value": "createdAt" },
-                { "key": "sortOrder", "value": "desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "frontend"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
               ]
             }
           }
@@ -446,6 +461,114 @@
                 {
                   "key": "teamId",
                   "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get team members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams", ":teamId", "members"],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add member to team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"YOUR_USER_ID_HERE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "teams", ":teamId", "members"],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove member from team",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/teams/:teamId/members/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "{{apiPrefix}}",
+                "teams",
+                ":teamId",
+                "members",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "teamId",
+                  "value": "YOUR_TEAM_ID_HERE"
+                },
+                {
+                  "key": "userId",
+                  "value": "YOUR_USER_ID_HERE"
                 }
               ]
             }

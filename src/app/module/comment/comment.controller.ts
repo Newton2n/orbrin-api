@@ -8,125 +8,125 @@ import type { commentValidation } from "./comment.schema";
 import { AppError } from "../../utils/app-error";
 
 const createComment = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const organizationId = req.user?.organizationId;
-    const userId = req.user?.id;
-    const { taskId } = req.params;
+	async (req: Request, res: Response, next: NextFunction) => {
+		const organizationId = req.user?.organizationId;
+		const userId = req.user?.id;
+		const { taskId } = req.params;
 
-    if (!taskId) {
-      throw new AppError(
-        StatusCodes.BAD_REQUEST,
-        "Task ID is missing in the request parameters.",
-      );
-    }
+		if (!taskId) {
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
+		}
 
-    const result = await commentService.createComment(
-      organizationId!,
-      userId!,
-      taskId as string,
-      req.body,
-    );
+		const result = await commentService.createComment(
+			organizationId!,
+			userId!,
+			taskId as string,
+			req.body,
+		);
 
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes.CREATED,
-      message: "Comment added successfully",
-      data: result,
-    });
-  },
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.CREATED,
+			message: "Comment added successfully",
+			data: result,
+		});
+	},
 );
 
 const getCommentsByTask = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const organizationId = req.user?.organizationId;
-    const { taskId } = req.params;
+	async (req: Request, res: Response, next: NextFunction) => {
+		const organizationId = req.user?.organizationId;
+		const { taskId } = req.params;
 
-    if (!taskId) {
-      throw new AppError(
-        StatusCodes.BAD_REQUEST,
-        "Task ID is missing in the request parameters.",
-      );
-    }
+		if (!taskId) {
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Task ID is missing in the request parameters.",
+			);
+		}
 
-    const query = req.validatedQuery as z.infer<
-      typeof commentValidation.commentQuerySchema
-    >;
-    const result = await commentService.getCommentsByTask(
-      organizationId!,
-      taskId as string,
-      query,
-    );
+		const query = req.validatedQuery as z.infer<
+			typeof commentValidation.commentQuerySchema
+		>;
+		const result = await commentService.getCommentsByTask(
+			organizationId!,
+			taskId as string,
+			query,
+		);
 
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes.OK,
-      message: "Comments retrieved successfully",
-      data: result.data,
-      pagination: result.pagination,
-    });
-  },
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Comments retrieved successfully",
+			data: result.data,
+			pagination: result.pagination,
+		});
+	},
 );
 
 const updateComment = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const organizationId = req.user?.organizationId;
-    const userId = req.user?.id;
-    const { commentId } = req.params;
-    const role = req.user?.role;
+	async (req: Request, res: Response, next: NextFunction) => {
+		const organizationId = req.user?.organizationId;
+		const userId = req.user?.id;
+		const { commentId } = req.params;
+		const role = req.user?.role;
 
-    if (!commentId) {
-      throw new AppError(
-        StatusCodes.BAD_REQUEST,
-        "Comment ID is missing in the request parameters.",
-      );
-    }
+		if (!commentId) {
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Comment ID is missing in the request parameters.",
+			);
+		}
 
-    const result = await commentService.updateComment(
-      organizationId!,
-      userId!,
-      commentId as string,
-      req.body,
-      role!,
-    );
+		const result = await commentService.updateComment(
+			organizationId!,
+			userId!,
+			commentId as string,
+			req.body,
+			role!,
+		);
 
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes.OK,
-      message: "Comment updated successfully",
-      data: result,
-    });
-  },
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Comment updated successfully",
+			data: result,
+		});
+	},
 );
 
 const deleteComment = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const organizationId = req.user?.organizationId;
-    const userId = req.user?.id;
-    const userRole = req.user?.role;
-    const { commentId } = req.params;
+	async (req: Request, res: Response, next: NextFunction) => {
+		const organizationId = req.user?.organizationId;
+		const userId = req.user?.id;
+		const userRole = req.user?.role;
+		const { commentId } = req.params;
 
-    if (!commentId) {
-      throw new AppError(
-        StatusCodes.BAD_REQUEST,
-        "Comment ID is missing in the request parameters.",
-      );
-    }
+		if (!commentId) {
+			throw new AppError(
+				StatusCodes.BAD_REQUEST,
+				"Comment ID is missing in the request parameters.",
+			);
+		}
 
-    const result = await commentService.deleteComment(
-      organizationId!,
-      userId!,
-      userRole!,
-      commentId as string,
-    );
+		const result = await commentService.deleteComment(
+			organizationId!,
+			userId!,
+			userRole!,
+			commentId as string,
+		);
 
-    sendSuccessResponse(res, {
-      statusCode: StatusCodes.OK,
-      message: "Comment deleted successfully",
-      data: result,
-    });
-  },
+		sendSuccessResponse(res, {
+			statusCode: StatusCodes.OK,
+			message: "Comment deleted successfully",
+			data: result,
+		});
+	},
 );
 
 export const commentController = {
-  createComment,
-  getCommentsByTask,
-  updateComment,
-  deleteComment,
+	createComment,
+	getCommentsByTask,
+	updateComment,
+	deleteComment,
 };
