@@ -1,10 +1,17 @@
 import { Router } from "express";
+
 import { teamController } from "./team.controller";
+
 import { validate, validateQuery } from "../../middleware/validate";
+
 import { teamValidation } from "./team.schema";
+
 import { authMiddleware } from "../../middleware/auth";
+
 import { Role } from "../../../../prisma/generated/prisma/enums";
+
 import { subscriptionCheck } from "../../middleware/subscription-check";
+
 import { emailVerificationMiddleware } from "../../middleware/email-verified";
 
 const router = Router();
@@ -29,6 +36,34 @@ router.get(
 	teamController.getAllTeams,
 );
 
+// Get team members
+router.get(
+	"/:teamId/members",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+	emailVerificationMiddleware,
+	subscriptionCheck,
+	teamController.getTeamMembers,
+);
+
+// Add a member to a team
+router.post(
+	"/:teamId/members",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+	emailVerificationMiddleware,
+	subscriptionCheck,
+	validate(teamValidation.addTeamMemberValidationSchema),
+	teamController.addTeamMember,
+);
+
+// Remove a member from a team
+router.delete(
+	"/:teamId/members/:userId",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+	emailVerificationMiddleware,
+	subscriptionCheck,
+	teamController.removeTeamMember,
+);
+
 // Get a team by its ID
 router.get(
 	"/:teamId",
@@ -38,7 +73,7 @@ router.get(
 	teamController.getTeamById,
 );
 
-//  Update a team by its ID
+// Update a team by its ID
 router.patch(
 	"/:teamId",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER),

@@ -155,10 +155,165 @@ const deleteTeam = async (organizationId: string, teamId: string) => {
 	return updatedTeam;
 };
 
+const addTeamMember = async (
+	organizationId: string,
+	teamId: string,
+	userId: string,
+) => {
+	const team = await prisma.team.findFirst({
+		where: {
+			id: teamId,
+			organizationId,
+			deletedAt: null,
+		},
+	});
+
+	if (!team) {
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found.");
+	}
+
+	const userMembership = await prisma.organizationMembership.findFirst({
+		where: {
+			organizationId,
+			userId,
+			status: "ACTIVE",
+		},
+	});
+
+	if (!userMembership) {
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"User is not an active member of this organization.",
+		);
+	}
+
+	const existingMembership = await prisma.teamMembership.findUnique({
+		where: {
+			teamId_userId: {
+				teamId,
+				userId,
+			},
+		},
+	});
+
+	if (existingMembership) {
+		throw new AppError(
+			StatusCodes.CONFLICT,
+			"User is already a member of this team.",
+		);
+	}
+
+	const teamMembership = await prisma.teamMembership.create({
+		data: {
+			teamId,
+			userId,
+		},
+		include: {
+			user: {
+				select: {
+					id: true,
+					fullName: true,
+					email: true,
+					profileImageUrl: true,
+				},
+			},
+		},
+	});
+
+	return teamMembership;
+};
+
+const getTeamMembers = async (organizationId: string, teamId: string) => {
+	const team = await prisma.team.findFirst({
+		where: {
+			id: teamId,
+			organizationId,
+			deletedAt: null,
+		},
+	});
+
+	if (!team) {
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found.");
+	}
+
+	const members = await prisma.teamMembership.findMany({
+		where: {
+			teamId,
+			user: {
+				deletedAt: null,
+			},
+		},
+		include: {
+			user: {
+				select: {
+					id: true,
+					fullName: true,
+					email: true,
+					profileImageUrl: true,
+					status: true,
+				},
+			},
+		},
+		orderBy: {
+			createdAt: "asc",
+		},
+	});
+
+	return members;
+};
+
+const removeTeamMember = async (
+	organizationId: string,
+	teamId: string,
+	userId: string,
+) => {
+	const team = await prisma.team.findFirst({
+		where: {
+			id: teamId,
+			organizationId,
+			deletedAt: null,
+		},
+	});
+
+	if (!team) {
+		throw new AppError(StatusCodes.NOT_FOUND, "Team not found.");
+	}
+
+	const membership = await prisma.teamMembership.findUnique({
+		where: {
+			teamId_userId: {
+				teamId,
+				userId,
+			},
+		},
+	});
+
+	if (!membership) {
+		throw new AppError(
+			StatusCodes.NOT_FOUND,
+			"User is not a member of this team.",
+		);
+	}
+
+	await prisma.teamMembership.delete({
+		where: {
+			teamId_userId: {
+				teamId,
+				userId,
+			},
+		},
+	});
+
+	return null;
+};
+
 export const teamService = {
 	createTeam,
 	getAllTeams,
 	getTeamById,
 	updateTeam,
 	deleteTeam,
+	addTeamMember,
+	getTeamMembers,
+	removeTeamMember,
 };

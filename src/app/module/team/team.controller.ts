@@ -148,10 +148,91 @@ const deleteTeam = catchAsync(
 	},
 );
 
+const addTeamMember = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const { teamId } = req.params;
+		const { userId } = req.body;
+
+		const organizationId = req.user!.organizationId;
+
+		const result = await teamService.addTeamMember(
+			organizationId,
+			teamId as string,
+			userId,
+		);
+
+		res.status(StatusCodes.CREATED).json({
+			success: true,
+			message: "Member added to team successfully.",
+			data: result,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+const getTeamMembers = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const { teamId } = req.params;
+
+		const organizationId = req.user!.organizationId;
+
+		const result = await teamService.getTeamMembers(
+			organizationId,
+			teamId as string,
+		);
+
+		res.status(StatusCodes.OK).json({
+			success: true,
+			message: "Team members retrieved successfully.",
+			data: result,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+const removeTeamMember = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const { teamId, userId } = req.params;
+
+		const organizationId = req.user!.organizationId;
+
+		await teamService.removeTeamMember(
+			organizationId,
+			teamId as string,
+			userId as string,
+		);
+
+		res.status(StatusCodes.OK).json({
+			success: true,
+			message: "Member removed from team successfully.",
+			data: null,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
 export const teamController = {
 	createTeam,
 	getAllTeams,
 	getTeamById,
 	updateTeam,
 	deleteTeam,
+	addTeamMember,
+	getTeamMembers,
+	removeTeamMember,
 };

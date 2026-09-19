@@ -7,3 +7,7 @@ export interface IUpdateTeamPayload {
 	name?: string;
 	description?: string;
 }
+
+export interface IAddTeamMemberPayload {
+	userId: string;
+}

@@ -35,8 +35,30 @@ const teamQuerySchema = paginationQuerySchema.extend({
 	sortOrder: sortOrderSchema.default("desc"),
 });
 
+const addTeamMemberValidationSchema = z.object({
+	body: z.object({
+		userId: z.uuid("Invalid user ID."),
+	}),
+});
+
+const teamMemberParamsValidationSchema = z.object({
+	params: z.object({
+		teamId: z.uuid("Invalid team ID."),
+	}),
+});
+
+const removeTeamMemberValidationSchema = z.object({
+	params: z.object({
+		teamId: z.uuid("Invalid team ID."),
+		userId: z.uuid("Invalid user ID."),
+	}),
+});
+
 export const teamValidation = {
 	createTeamSchema,
 	updateTeamSchema,
 	teamQuerySchema,
+	addTeamMemberValidationSchema,
+	teamMemberParamsValidationSchema,
+	removeTeamMemberValidationSchema,
 };
