@@ -24,7 +24,7 @@ router.get(
 	"/projects/:projectId",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	validateQuery(sprintValidation.sprintQuerySchema),
 	sprintController.getSprintsByProject,
 );
@@ -34,7 +34,7 @@ router.get(
 	"/:sprintId",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	sprintController.getSprintById,
 );
 

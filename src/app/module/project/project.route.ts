@@ -26,7 +26,7 @@ router.get(
 	"/",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	validateQuery(projectValidation.projectQuerySchema),
 	projectController.getAllProjects,
 );
@@ -36,7 +36,7 @@ router.get(
 	"/:projectId",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	projectController.getProjectById,
 );
 

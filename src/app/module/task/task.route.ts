@@ -14,7 +14,7 @@ router.get(
   "/my-tasks",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getMyTasks,
 );
@@ -25,7 +25,7 @@ router.get(
     "/created-tasks",
     authMiddleware.auth(Role.ADMIN, Role.MANAGER),
     emailVerificationMiddleware,
-    subscriptionCheck,
+    // subscriptionCheck,
     validateQuery(taskValidation.taskQuerySchema),
     taskController.getMyCreatedTasks,
 );
@@ -45,7 +45,7 @@ router.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getTasksByProject,
 );
@@ -56,7 +56,7 @@ router.get(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   taskController.getTaskById,
 );
 

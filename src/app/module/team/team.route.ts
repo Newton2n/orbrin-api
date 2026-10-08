@@ -31,7 +31,7 @@ router.get(
 	"/",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	validateQuery(teamValidation.teamQuerySchema),
 	teamController.getAllTeams,
 );
@@ -41,7 +41,7 @@ router.get(
 	"/:teamId/members",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	teamController.getTeamMembers,
 );
 
@@ -69,7 +69,7 @@ router.get(
 	"/:teamId",
 	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	emailVerificationMiddleware,
-	subscriptionCheck,
+	// subscriptionCheck,
 	teamController.getTeamById,
 );
 
