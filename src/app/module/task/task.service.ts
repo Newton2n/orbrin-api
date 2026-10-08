@@ -7,214 +7,341 @@ import { createPaginationMeta, getPagination } from "../../utils/query";
 import type { z } from "zod";
 import type { taskValidation } from "./task.schema";
 import type { ICreateTaskPayload, IUpdateTaskPayload } from "./task.interface";
+import { th } from "zod/locales";
 
 // Create a new task for a specific project
 const createTask = async (
-	organizationId: string,
-	userId: string,
-	projectId: string,
-	payload: ICreateTaskPayload,
+  organizationId: string,
+  userId: string,
+  projectId: string,
+  payload: ICreateTaskPayload,
 ) => {
-	const project = await prisma.project.findFirst({
-		where: { id: projectId, organizationId, deletedAt: null },
-	});
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null },
+  });
 
-	if (!project) {
-		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
-	}
+  if (!project) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
+  }
 
-	// Validate status and priority values
-	if (
-		payload.status &&
-		!["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)
-	) {
-		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid status value");
-	}
+  const assinee = payload.assigneeId;
 
-	// Validate priority value
-	if (
-		payload.priority &&
-		!["LOW", "MEDIUM", "HIGH"].includes(payload.priority)
-	) {
-		throw new AppError(StatusCodes.BAD_REQUEST, "Invalid priority value");
-	}
-	const task = await prisma.task.create({
-		data: {
-			title: payload.title,
-			description: payload.description,
-			status: payload.status || "TODO",
-			priority: payload.priority || "MEDIUM",
-			assigneeId: payload.assigneeId,
-			creatorId: userId,
-			projectId,
-		},
-	});
+  const assineeMembership = await prisma.organizationMembership.findFirst({
+    where: {
+      userId: assinee,
+      organizationId,
+    },
+  });
 
-	return task;
+  if (assinee && !assineeMembership) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Assignee not found");
+  }
+
+  if (assineeMembership?.role !== "MEMBER") {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "Assignee must be a member of the organization",
+    );
+  }
+
+  // Validate status and priority values
+  if (
+    payload.status &&
+    !["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)
+  ) {
+    throw new AppError(StatusCodes.BAD_REQUEST, "Invalid status value");
+  }
+
+  // Validate priority value
+  if (
+    payload.priority &&
+    !["LOW", "MEDIUM", "HIGH"].includes(payload.priority)
+  ) {
+    throw new AppError(StatusCodes.BAD_REQUEST, "Invalid priority value");
+  }
+  const task = await prisma.task.create({
+    data: {
+      title: payload.title,
+      description: payload.description,
+      status: payload.status || "TODO",
+      priority: payload.priority || "MEDIUM",
+      assigneeId: payload.assigneeId,
+      creatorId: userId,
+      projectId,
+    },
+  });
+
+  return task;
 };
 
 // Get all tasks for a specific project
 const getTasksByProject = async (
-	organizationId: string,
-	projectId: string,
-	query: z.infer<typeof taskValidation.taskQuerySchema>,
+  organizationId: string,
+  projectId: string,
+  query: z.infer<typeof taskValidation.taskQuerySchema>,
 ) => {
-	const project = await prisma.project.findFirst({
-		where: { id: projectId, organizationId, deletedAt: null },
-	});
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, organizationId, deletedAt: null },
+  });
 
-	if (!project) {
-		throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
-	}
+  if (!project) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Project not found");
+  }
 
-	const {
-		page,
-		limit,
-		search,
-		sortBy,
-		sortOrder,
-		status,
-		priority,
-		assigneeId,
-		sprintId,
-	} = query;
-	const where: Prisma.TaskWhereInput = {
-		projectId,
-		deletedAt: null,
-		...(status ? { status } : {}),
-		...(priority ? { priority } : {}),
-		...(assigneeId ? { assigneeId } : {}),
-		...(sprintId ? { sprintId } : {}),
-		...(search
-			? {
-					OR: [
-						{ title: { contains: search, mode: "insensitive" } },
-						{ description: { contains: search, mode: "insensitive" } },
-					],
-				}
-			: {}),
-	};
+  const {
+    page,
+    limit,
+    search,
+    sortBy,
+    sortOrder,
+    status,
+    priority,
+    assigneeId,
+    sprintId,
+  } = query;
+  const where: Prisma.TaskWhereInput = {
+    projectId,
+    deletedAt: null,
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+    ...(assigneeId ? { assigneeId } : {}),
+    ...(sprintId ? { sprintId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
 
-	const [tasks, total] = await prisma.$transaction([
-		prisma.task.findMany({
-			where,
-			...getPagination(page, limit),
-			orderBy: { [sortBy]: sortOrder },
-		}),
-		prisma.task.count({ where }),
-	]);
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+    }),
+    prisma.task.count({ where }),
+  ]);
 
-	return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
 };
 
 // Get a single task by its ID
 const getTaskById = async (organizationId: string, taskId: string) => {
-	const task = await prisma.task.findFirst({
-		where: {
-			id: taskId,
-			project: {
-				organizationId,
-				deletedAt: null,
-			},
-			deletedAt: null,
-		},
-		include: {
-			project: true,
-		},
-	});
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      project: {
+        organizationId,
+        deletedAt: null,
+      },
+      deletedAt: null,
+    },
+    include: {
+      project: true,
+    },
+  });
 
-	if (!task) {
-		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
-	}
+  if (!task) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
+  }
 
-	return task;
+  return task;
 };
 
 // Update a task by its ID
 const updateTask = async (
-	organizationId: string,
-	taskId: string,
-	payload: IUpdateTaskPayload,
-	userId: string,
-	role: Role,
+  organizationId: string,
+  taskId: string,
+  payload: IUpdateTaskPayload,
+  userId: string,
+  role: Role,
 ) => {
-	const task = await prisma.task.findFirst({
-		where: {
-			id: taskId,
-			deletedAt: null,
-			project: {
-				organizationId,
-				deletedAt: null,
-			},
-		},
-	});
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      deletedAt: null,
+      project: {
+        organizationId,
+        deletedAt: null,
+      },
+    },
+  });
 
-	if (!task) {
-		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
-	}
+  if (!task) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
+  }
 
-	if (
-		task.assigneeId &&
-		role !== Role.MANAGER &&
-		role !== Role.ADMIN &&
-		task.assigneeId !== userId
-	) {
-		throw new AppError(
-			StatusCodes.FORBIDDEN,
-			"You are not authorized to update this task",
-		);
-	}
+  if (
+    task.assigneeId &&
+    role !== Role.MANAGER &&
+    role !== Role.ADMIN &&
+    task.assigneeId !== userId
+  ) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to update this task",
+    );
+  }
 
-	if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
-		throw new AppError(
-			StatusCodes.FORBIDDEN,
-			"You are not authorized to assign this task",
-		);
-	}
+  if (payload.assigneeId && role !== Role.MANAGER && role !== Role.ADMIN) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to assign this task",
+    );
+  }
 
-	const updateData: IUpdateTaskPayload = { ...payload };
+  const updateData: IUpdateTaskPayload = { ...payload };
 
-	if (payload.dueDate) {
-		updateData.dueDate = new Date(payload.dueDate);
-	}
+  if (payload.dueDate) {
+    updateData.dueDate = new Date(payload.dueDate);
+  }
 
-	const updatedTask = await prisma.task.update({
-		where: { id: taskId },
-		data: updateData,
-	});
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: updateData,
+  });
 
-	return updatedTask;
+  return updatedTask;
 };
 
 // Delete a task by its ID
 const deleteTask = async (organizationId: string, taskId: string) => {
-	const task = await prisma.task.findFirst({
-		where: {
-			id: taskId,
-			project: {
-				organizationId,
-				deletedAt: null,
-			},
-			deletedAt: null,
-		},
-	});
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      project: {
+        organizationId,
+        deletedAt: null,
+      },
+      deletedAt: null,
+    },
+  });
 
-	if (!task) {
-		throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
-	}
+  if (!task) {
+    throw new AppError(StatusCodes.NOT_FOUND, "Task not found");
+  }
 
-	const deletedTask = await prisma.task.update({
-		where: { id: taskId },
-		data: { deletedAt: new Date() },
-	});
+  const deletedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: { deletedAt: new Date() },
+  });
 
-	return deletedTask;
+  return deletedTask;
+};
+
+
+// Get all tasks assigned to the current user
+const getMyTasks = async (
+  organizationId: string,
+  userId: string,
+  query: z.infer<typeof taskValidation.taskQuerySchema>,
+) => {
+  const { page, limit, search, sortBy, sortOrder, status, priority, sprintId } =
+    query;
+
+  const where: Prisma.TaskWhereInput = {
+    assigneeId: userId,
+    deletedAt: null,
+    project: {
+      organizationId,
+      deletedAt: null,
+    },
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+    ...(sprintId ? { sprintId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        project: {
+          select: { id: true, name: true },
+        },
+      },
+    }),
+    prisma.task.count({ where }),
+  ]);
+
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
+};
+
+
+// Get all tasks created by the current user (Admin/Manager)
+const getMyCreatedTasks = async (
+  organizationId: string,
+  userId: string,
+  query: z.infer<typeof taskValidation.taskQuerySchema>
+) => {
+  const { page, limit, search, sortBy, sortOrder, status, priority, sprintId } = query;
+
+  const where: Prisma.TaskWhereInput = {
+    creatorId: userId,
+    deletedAt: null,
+    project: {
+      organizationId,
+      deletedAt: null,
+    },
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+    ...(sprintId ? { sprintId } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy || "createdAt"]: sortOrder || "desc" },
+      include: {
+        project: {
+          select: { 
+            id: true, 
+            name: true 
+          }
+        },
+        assignee: {
+          select: { 
+            id: true, 
+            fullName: true, 
+            profileImageUrl: true, 
+            email: true 
+          }
+        }
+      }
+    }),
+    prisma.task.count({ where }),
+  ]);
+
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
 };
 
 export const taskService = {
-	createTask,
-	getTasksByProject,
-	getTaskById,
-	updateTask,
-	deleteTask,
+  createTask,
+  getTasksByProject,
+  getTaskById,
+  updateTask,
+  deleteTask,
+  getMyTasks, 
+  getMyCreatedTasks 
 };

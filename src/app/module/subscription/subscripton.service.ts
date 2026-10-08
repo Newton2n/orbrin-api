@@ -97,8 +97,8 @@ const createCheckoutSession = async (
 		payment_method_types: ["card"],
 		line_items: [{ price: config.orbrin_base_one_month_plan_id, quantity: 1 }],
 		mode: "subscription",
-		success_url: `${config.frontend_url}/subscription/success`,
-		cancel_url: `${config.frontend_url}/subscription/cancel`,
+		success_url: `${config.frontend_url}/dashboard/admin/subscription/success`,
+		cancel_url: `${config.frontend_url}/dashboard/admin/subscription/cancel`,
 		metadata: {
 			organizationId,
 			planName: "orbrin base one month",

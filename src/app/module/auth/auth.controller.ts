@@ -5,172 +5,179 @@ import { sendSuccessResponse } from "../../utils/response";
 import { StatusCodes } from "http-status-codes";
 import { AppError } from "../../utils/app-error";
 
-const registerOrgOwner = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const result = await authService.registerOrgOwner(req.body);
+// Helper to determine environment
+const isProduction = process.env.NODE_ENV === "production";
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.CREATED,
-			message: "Organization and Owner account created successfully",
-			data: result,
-		});
-	},
+const registerOrgOwner = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const result = await authService.registerOrgOwner(req.body);
+
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.CREATED,
+            message: "Organization and Owner account created successfully",
+            data: result,
+        });
+    },
 );
 
 const registerMember = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const result = await authService.registerMember(req.body);
+    async (req: Request, res: Response, next: NextFunction) => {
+        const result = await authService.registerMember(req.body);
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.CREATED,
-			message: "Member account created and joined organization successfully",
-			data: result,
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.CREATED,
+            message: "Member account created and joined organization successfully",
+            data: result,
+        });
+    },
 );
 
 const login = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const { accessToken, refreshToken, jwtPayload } = await authService.login(
-			req.body,
-		);
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { accessToken, refreshToken, jwtPayload } = await authService.login(
+            req.body,
+        );
 
-		res.cookie("refreshToken", refreshToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "strict",
-			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-		});
-		res.cookie("accessToken", accessToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "strict",
-			maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
-		});
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: isProduction, // false on localhost, true in production
+            sameSite: isProduction ? "none" : "lax", // 'none' requires secure: true
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        });
+        
+        res.cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
+        });
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "User logged in successfully",
-			data: {
-				user: jwtPayload,
-				accessToken,
-				refreshToken,
-			},
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message: "User logged in successfully",
+            data: {
+                user: jwtPayload,
+                accessToken,
+                refreshToken,
+            },
+        });
+    },
 );
 
 const getMe = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const userId = req.user?.id;
+    async (req: Request, res: Response, next: NextFunction) => {
+        const userId = req.user?.id;
 
-		if (!userId) {
-			throw new AppError(
-				StatusCodes.UNAUTHORIZED,
-				"Cannot fetch user, please log in again",
-			);
-		}
+        if (!userId) {
+            throw new AppError(
+                StatusCodes.UNAUTHORIZED,
+                "Cannot fetch user, please log in again",
+            );
+        }
 
-		const result = await authService.getMe(userId);
+        const result = await authService.getMe(userId);
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "User data retrieved successfully",
-			data: result,
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message: "User data retrieved successfully",
+            data: result,
+        });
+    },
 );
 
 const refreshToken = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const { refreshToken: token } = req.cookies;
-		if (!token) {
-			throw new AppError(
-				StatusCodes.UNAUTHORIZED,
-				"No refresh token provided. Please log in again.",
-			);
-		}
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { refreshToken: token } = req.cookies;
+        if (!token) {
+            throw new AppError(
+                StatusCodes.UNAUTHORIZED,
+                "No refresh token provided. Please log in again.",
+            );
+        }
 
-		const { accessToken, jwtPayload } = await authService.refreshToken(token);
+        const { accessToken, jwtPayload } = await authService.refreshToken(token);
 
-		res.cookie("accessToken", accessToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "strict",
-			maxAge: 24 * 60 * 60 * 1000,
-		});
+        res.cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 24 * 60 * 60 * 1000,
+        });
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "Access token generated successfully",
-			data: {
-				accessToken,
-				user: jwtPayload,
-			},
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message: "Access token generated successfully",
+            data: {
+                accessToken,
+                user: jwtPayload,
+            },
+        });
+    },
 );
 
 const googleLogin = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const { accessToken, refreshToken, jwtPayload } =
-			await authService.googleLogin(req.body.idToken, req.body.organizationId);
+    async (req: Request, res: Response, next: NextFunction) => {
+        const { accessToken, refreshToken, jwtPayload } =
+            await authService.googleLogin(req.body.idToken, req.body.organizationId);
 
-		res.cookie("refreshToken", refreshToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "strict",
-			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-		});
-		res.cookie("accessToken", accessToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: "strict",
-			maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
-		});
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        });
+        
+        res.cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
+        });
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "User logged in successfully via Google",
-			data: {
-				user: jwtPayload,
-				accessToken,
-				refreshToken,
-			},
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message: "User logged in successfully via Google",
+            data: {
+                user: jwtPayload,
+                accessToken,
+                refreshToken,
+            },
+        });
+    },
 );
-const sendVerificationEmail = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		await authService.sendVerificationEmail(req.body);
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message:
-				"If the account exists and is not verified, a verification code has been sent.",
-			data: null,
-		});
-	},
+const sendVerificationEmail = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+        await authService.sendVerificationEmail(req.body);
+
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message:
+                "If the account exists and is not verified, a verification code has been sent.",
+            data: null,
+        });
+    },
 );
 
 const verifyEmail = catchAsync(
-	async (req: Request, res: Response, next: NextFunction) => {
-		const result = await authService.verifyEmail(req.body);
+    async (req: Request, res: Response, next: NextFunction) => {
+        const result = await authService.verifyEmail(req.body);
 
-		sendSuccessResponse(res, {
-			statusCode: StatusCodes.OK,
-			message: "Email verified successfully.",
-			data: result,
-		});
-	},
+        sendSuccessResponse(res, {
+            statusCode: StatusCodes.OK,
+            message: "Email verified successfully.",
+            data: result,
+        });
+    },
 );
+
 export const authController = {
-	registerOrgOwner,
-	registerMember,
-	login,
-	getMe,
-	refreshToken,
-	googleLogin,
-	sendVerificationEmail,
-	verifyEmail,
+    registerOrgOwner,
+    registerMember,
+    login,
+    getMe,
+    refreshToken,
+    googleLogin,
+    sendVerificationEmail,
+    verifyEmail,
 };

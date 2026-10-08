@@ -196,6 +196,8 @@ const getMe = async (userId: string) => {
 		where: { id: userId },
 		omit: {
 			passwordHash: true,
+			profileImagePublicId :true,
+			
 		},
 		include: {
 			memberships: {

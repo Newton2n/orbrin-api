@@ -23,6 +23,7 @@ const getMyOrganization = async (organizationId: string) => {
 			id: true,
 			name: true,
 			slug: true,
+			logoUrl: true,
 			createdAt: true,
 			updatedAt: true,
 

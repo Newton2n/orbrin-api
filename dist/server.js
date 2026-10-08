@@ -719,6 +719,12 @@ var globalError = (err, _req, res, _next) => {
 };
 var global_error_default = globalError;
 
+// src/app/middleware/rate-limiter.ts
+import { Ratelimit } from "@upstash/ratelimit";
+
+// src/app/lib/redis.ts
+import { Redis } from "@upstash/redis";
+
 // src/app/config/index.ts
 import path2 from "path";
 import dotenv from "dotenv";
@@ -752,11 +758,7 @@ var config_default = {
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET
 };
 
-// src/app/middleware/rate-limiter.ts
-import { Ratelimit } from "@upstash/ratelimit";
-
 // src/app/lib/redis.ts
-import { Redis } from "@upstash/redis";
 var redis = new Redis({
   url: config_default.upstash_redis_rest_url,
   token: config_default.upstash_redis_rest_token
@@ -1105,7 +1107,8 @@ var getMe = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     omit: {
-      passwordHash: true
+      passwordHash: true,
+      profileImagePublicId: true
     },
     include: {
       memberships: {
@@ -1374,6 +1377,7 @@ var sendSuccessResponse = (res, data) => {
 
 // src/app/module/auth/auth.controller.ts
 import { StatusCodes as StatusCodes6 } from "http-status-codes";
+var isProduction = process.env.NODE_ENV === "production";
 var registerOrgOwner2 = catch_async_default(
   async (req, res, next) => {
     const result = await authService.registerOrgOwner(req.body);
@@ -1401,15 +1405,17 @@ var login2 = catch_async_default(
     );
     res.cookie("refreshToken", refreshToken3, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: isProduction,
+      // false on localhost, true in production
+      sameSite: isProduction ? "none" : "lax",
+      // 'none' requires secure: true
       maxAge: 7 * 24 * 60 * 60 * 1e3
       // 7 days in milliseconds
     });
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1e3
       // 1 day in milliseconds
     });
@@ -1453,8 +1459,8 @@ var refreshToken2 = catch_async_default(
     const { accessToken, jwtPayload } = await authService.refreshToken(token);
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1e3
     });
     sendSuccessResponse(res, {
@@ -1472,15 +1478,15 @@ var googleLogin2 = catch_async_default(
     const { accessToken, refreshToken: refreshToken3, jwtPayload } = await authService.googleLogin(req.body.idToken, req.body.organizationId);
     res.cookie("refreshToken", refreshToken3, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1e3
       // 7 days in milliseconds
     });
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1e3
       // 1 day in milliseconds
     });
@@ -1697,7 +1703,6 @@ router.get(
 );
 router.post(
   "/refresh-token",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   authController.refreshToken
 );
 router.post(
@@ -2323,7 +2328,7 @@ var emailVerificationMiddleware = async (req, res, next) => {
 var router2 = Router2();
 router2.post(
   "/",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  authMiddleware.auth(Role.ADMIN),
   emailVerificationMiddleware,
   subscriptionCheck,
   validate(teamValidation.createTeamSchema),
@@ -2368,7 +2373,7 @@ router2.get(
 );
 router2.patch(
   "/:teamId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  authMiddleware.auth(Role.ADMIN),
   emailVerificationMiddleware,
   subscriptionCheck,
   validate(teamValidation.updateTeamSchema),
@@ -2376,7 +2381,7 @@ router2.patch(
 );
 router2.delete(
   "/:teamId",
-  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  authMiddleware.auth(Role.ADMIN),
   emailVerificationMiddleware,
   subscriptionCheck,
   teamController.deleteTeam
@@ -2517,14 +2522,28 @@ var getProjectById = async (organizationId, projectId) => {
       deletedAt: null
     },
     include: {
-      teams: true,
-      tasks: true
+      sprints: {
+        include: {
+          tasks: true
+        }
+      },
+      teams: true
     }
   });
   if (!project) {
     throw new AppError(StatusCodes12.NOT_FOUND, "Project not found.");
   }
-  return project;
+  const tasksWithoutSprint = await prisma.task.findMany({
+    where: {
+      projectId,
+      sprintId: null,
+      deletedAt: null
+    }
+  });
+  return {
+    ...project,
+    tasksWithoutSprint
+  };
 };
 var updateProject = async (organizationId, projectId, payload) => {
   const project = await prisma.project.findFirst({
@@ -3119,6 +3138,22 @@ var createTask = async (organizationId, userId, projectId, payload) => {
   if (!project) {
     throw new AppError(StatusCodes14.NOT_FOUND, "Project not found");
   }
+  const assinee = payload.assigneeId;
+  const assineeMembership = await prisma.organizationMembership.findFirst({
+    where: {
+      userId: assinee,
+      organizationId
+    }
+  });
+  if (assinee && !assineeMembership) {
+    throw new AppError(StatusCodes14.NOT_FOUND, "Assignee not found");
+  }
+  if (assineeMembership?.role !== "MEMBER") {
+    throw new AppError(
+      StatusCodes14.FORBIDDEN,
+      "Assignee must be a member of the organization"
+    );
+  }
   if (payload.status && !["TODO", "IN_PROGRESS", "DONE"].includes(payload.status)) {
     throw new AppError(StatusCodes14.BAD_REQUEST, "Invalid status value");
   }
@@ -3255,12 +3290,93 @@ var deleteTask = async (organizationId, taskId) => {
   });
   return deletedTask;
 };
+var getMyTasks = async (organizationId, userId, query) => {
+  const { page, limit, search, sortBy, sortOrder, status, priority, sprintId } = query;
+  const where = {
+    assigneeId: userId,
+    deletedAt: null,
+    project: {
+      organizationId,
+      deletedAt: null
+    },
+    ...status ? { status } : {},
+    ...priority ? { priority } : {},
+    ...sprintId ? { sprintId } : {},
+    ...search ? {
+      OR: [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        project: {
+          select: { id: true, name: true }
+        }
+      }
+    }),
+    prisma.task.count({ where })
+  ]);
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
+};
+var getMyCreatedTasks = async (organizationId, userId, query) => {
+  const { page, limit, search, sortBy, sortOrder, status, priority, sprintId } = query;
+  const where = {
+    creatorId: userId,
+    deletedAt: null,
+    project: {
+      organizationId,
+      deletedAt: null
+    },
+    ...status ? { status } : {},
+    ...priority ? { priority } : {},
+    ...sprintId ? { sprintId } : {},
+    ...search ? {
+      OR: [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      ...getPagination(page, limit),
+      orderBy: { [sortBy || "createdAt"]: sortOrder || "desc" },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        assignee: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            email: true
+          }
+        }
+      }
+    }),
+    prisma.task.count({ where })
+  ]);
+  return { data: tasks, pagination: createPaginationMeta(page, limit, total) };
+};
 var taskService = {
   createTask,
   getTasksByProject,
   getTaskById,
   updateTask,
-  deleteTask
+  deleteTask,
+  getMyTasks,
+  getMyCreatedTasks
 };
 
 // src/app/module/task/task.controller.ts
@@ -3412,12 +3528,70 @@ var deleteTask2 = catch_async_default(
     });
   }
 );
+var getMyTasks2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.id;
+    if (!organizationId) {
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
+    }
+    if (!userId) {
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
+    }
+    const query = req.validatedQuery;
+    const result = await taskService.getMyTasks(organizationId, userId, query);
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes15.OK,
+      message: "Assigned tasks retrieved successfully",
+      data: result.data,
+      pagination: result.pagination
+    });
+  }
+);
+var getMyCreatedTasks2 = catch_async_default(
+  async (req, res, next) => {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.id;
+    if (!organizationId) {
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "Organization ID is missing in the request context."
+      );
+    }
+    if (!userId) {
+      throw new AppError(
+        StatusCodes15.BAD_REQUEST,
+        "User ID is missing in the request context."
+      );
+    }
+    const query = req.validatedQuery;
+    const result = await taskService.getMyCreatedTasks(
+      organizationId,
+      userId,
+      query
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes15.OK,
+      message: "Created tasks retrieved successfully",
+      data: result.data,
+      pagination: result.pagination
+    });
+  }
+);
 var taskController = {
   createTask: createTask2,
   getTasksByProject: getTasksByProject2,
   getTaskById: getTaskById2,
   updateTask: updateTask2,
-  deleteTask: deleteTask2
+  deleteTask: deleteTask2,
+  getMyTasks: getMyTasks2,
+  getMyCreatedTasks: getMyCreatedTasks2
 };
 
 // src/app/module/task/task.schema.ts
@@ -3483,6 +3657,22 @@ var taskValidation = {
 
 // src/app/module/task/task.route.ts
 var router4 = Router4();
+router4.get(
+  "/my-tasks",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
+  validateQuery(taskValidation.taskQuerySchema),
+  taskController.getMyTasks
+);
+router4.get(
+  "/created-tasks",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+  emailVerificationMiddleware,
+  subscriptionCheck,
+  validateQuery(taskValidation.taskQuerySchema),
+  taskController.getMyCreatedTasks
+);
 router4.post(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
@@ -4392,8 +4582,8 @@ var createCheckoutSession = async (organizationId, userId) => {
     payment_method_types: ["card"],
     line_items: [{ price: config_default.orbrin_base_one_month_plan_id, quantity: 1 }],
     mode: "subscription",
-    success_url: `${config_default.frontend_url}/subscription/success`,
-    cancel_url: `${config_default.frontend_url}/subscription/cancel`,
+    success_url: `${config_default.frontend_url}/dashboard/admin/subscription/success`,
+    cancel_url: `${config_default.frontend_url}/dashboard/admin/subscription/cancel`,
     metadata: {
       organizationId,
       planName: "orbrin base one month",
@@ -4587,6 +4777,7 @@ var getMyProfile = async (userId) => {
       email: true,
       fullName: true,
       emailVerified: true,
+      profileImageUrl: true,
       status: true,
       authProvider: true,
       createdAt: true,
@@ -5189,6 +5380,7 @@ var getMyOrganization = async (organizationId) => {
       id: true,
       name: true,
       slug: true,
+      logoUrl: true,
       createdAt: true,
       updatedAt: true,
       memberships: {
@@ -5962,11 +6154,7 @@ var organizationRoutes = router9;
 
 // src/app.ts
 var app = express();
-var corsOptions = {
-  origin: config_default.frontend_url,
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(
   "/api/v1/subscriptions/webhook",
   express.raw({ type: "application/json" })

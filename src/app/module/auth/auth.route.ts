@@ -42,7 +42,6 @@ router.get(
 //Get new access token using refresh token route
 router.post(
 	"/refresh-token",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	authController.refreshToken,
 );
 

@@ -28,6 +28,7 @@ const getMyProfile = async (userId: string) => {
 			email: true,
 			fullName: true,
 			emailVerified: true,
+			profileImageUrl :true,
 			status: true,
 			authProvider: true,
 			createdAt: true,
@@ -155,10 +156,19 @@ const forgotPassword = async (payload: TForgotPassword) => {
 		},
 	});
 
+	
 	// If the user doesn't exist, we don't throw an error to avoid revealing whether the email is registered or not. We simply return and do nothing.
-	if (!user || user.deletedAt || user.authProvider !== "LOCAL") {
+	if (!user || user.deletedAt) {
 		return;
 	}
+
+	if(user.authProvider !== "LOCAL") {
+		throw new AppError(
+			StatusCodes.BAD_REQUEST,
+			"Password reset is only available for local accounts.",
+		);
+	}
+
 
 	// Generate a 6-digit OTP.
 	const otp = crypto.randomInt(100000, 1000000).toString();
@@ -172,6 +182,7 @@ const forgotPassword = async (payload: TForgotPassword) => {
 	await redis.set(redisKey, hashedOtp, {
 		ex: RESET_OTP_EXPIRY,
 	});
+
 
 	// Send OTP directly to email.
 	await mailService.sendPasswordResetOtpEmail({

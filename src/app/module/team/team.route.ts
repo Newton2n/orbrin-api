@@ -19,7 +19,7 @@ const router = Router();
 // Create a new team
 router.post(
 	"/",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+	authMiddleware.auth(Role.ADMIN),
 	emailVerificationMiddleware,
 	subscriptionCheck,
 	validate(teamValidation.createTeamSchema),
@@ -76,7 +76,7 @@ router.get(
 // Update a team by its ID
 router.patch(
 	"/:teamId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+	authMiddleware.auth(Role.ADMIN),
 	emailVerificationMiddleware,
 	subscriptionCheck,
 	validate(teamValidation.updateTeamSchema),
@@ -86,7 +86,7 @@ router.patch(
 // Delete a team by its ID
 router.delete(
 	"/:teamId",
-	authMiddleware.auth(Role.ADMIN, Role.MANAGER),
+	authMiddleware.auth(Role.ADMIN),
 	emailVerificationMiddleware,
 	subscriptionCheck,
 	teamController.deleteTeam,

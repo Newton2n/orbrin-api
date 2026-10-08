@@ -101,8 +101,10 @@ const getAllProjects = async (
 	};
 };
 
-// Get a project by its ID
-const getProjectById = async (organizationId: string, projectId: string) => {
+const getProjectById = async (
+	organizationId: string,
+	projectId: string,
+) => {
 	const project = await prisma.project.findFirst({
 		where: {
 			id: projectId,
@@ -110,8 +112,12 @@ const getProjectById = async (organizationId: string, projectId: string) => {
 			deletedAt: null,
 		},
 		include: {
+			sprints: {
+				include: {
+					tasks: true,
+				},
+			},
 			teams: true,
-			tasks: true,
 		},
 	});
 
@@ -119,7 +125,18 @@ const getProjectById = async (organizationId: string, projectId: string) => {
 		throw new AppError(StatusCodes.NOT_FOUND, "Project not found.");
 	}
 
-	return project;
+	const tasksWithoutSprint = await prisma.task.findMany({
+		where: {
+			projectId,
+			sprintId: null,
+			deletedAt: null,
+		},
+	});
+
+	return {
+		...project,
+		tasksWithoutSprint,
+	};
 };
 
 // Update a project by its ID
