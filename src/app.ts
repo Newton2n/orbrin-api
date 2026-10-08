@@ -19,12 +19,11 @@ import { organizationRoutes } from "./app/module/organization/organization.route
 const app: Application = express();
 
 const corsOptions = {
-	origin: "https://orbrin.vercel.app",
-	credentials: true,
+  origin: config.frontend_url,
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
-
 
 // Stripe webhook MUST come before express.json()
 app.use(

@@ -4889,8 +4889,14 @@ var forgotPassword = async (payload) => {
       email
     }
   });
-  if (!user || user.deletedAt || user.authProvider !== "LOCAL") {
+  if (!user || user.deletedAt) {
     return;
+  }
+  if (user.authProvider !== "LOCAL") {
+    throw new AppError(
+      StatusCodes22.BAD_REQUEST,
+      "Password reset is only available for local accounts."
+    );
   }
   const otp = crypto3.randomInt(1e5, 1e6).toString();
   const hashedOtp = crypto3.createHash("sha256").update(otp).digest("hex");
@@ -6154,7 +6160,11 @@ var organizationRoutes = router9;
 
 // src/app.ts
 var app = express();
-app.use(cors());
+var corsOptions = {
+  origin: "https://orbrin.vercel.app",
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(
   "/api/v1/subscriptions/webhook",
   express.raw({ type: "application/json" })
