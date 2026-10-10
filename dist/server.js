@@ -719,12 +719,6 @@ var globalError = (err, _req, res, _next) => {
 };
 var global_error_default = globalError;
 
-// src/app/middleware/rate-limiter.ts
-import { Ratelimit } from "@upstash/ratelimit";
-
-// src/app/lib/redis.ts
-import { Redis } from "@upstash/redis";
-
 // src/app/config/index.ts
 import path2 from "path";
 import dotenv from "dotenv";
@@ -758,7 +752,11 @@ var config_default = {
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET
 };
 
+// src/app/middleware/rate-limiter.ts
+import { Ratelimit } from "@upstash/ratelimit";
+
 // src/app/lib/redis.ts
+import { Redis } from "@upstash/redis";
 var redis = new Redis({
   url: config_default.upstash_redis_rest_url,
   token: config_default.upstash_redis_rest_token
@@ -2338,7 +2336,7 @@ router2.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(teamValidation.teamQuerySchema),
   teamController.getAllTeams
 );
@@ -2346,7 +2344,7 @@ router2.get(
   "/:teamId/members",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   teamController.getTeamMembers
 );
 router2.post(
@@ -2368,7 +2366,7 @@ router2.get(
   "/:teamId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   teamController.getTeamById
 );
 router2.patch(
@@ -3068,7 +3066,7 @@ router3.get(
   "/",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(projectValidation.projectQuerySchema),
   projectController.getAllProjects
 );
@@ -3076,7 +3074,7 @@ router3.get(
   "/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   projectController.getProjectById
 );
 router3.patch(
@@ -3661,7 +3659,7 @@ router4.get(
   "/my-tasks",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getMyTasks
 );
@@ -3669,7 +3667,7 @@ router4.get(
   "/created-tasks",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getMyCreatedTasks
 );
@@ -3685,7 +3683,7 @@ router4.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(taskValidation.taskQuerySchema),
   taskController.getTasksByProject
 );
@@ -3693,7 +3691,7 @@ router4.get(
   "/:taskId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   taskController.getTaskById
 );
 router4.patch(
@@ -4037,7 +4035,7 @@ router5.get(
   "/projects/:projectId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   validateQuery(sprintValidation.sprintQuerySchema),
   sprintController.getSprintsByProject
 );
@@ -4045,7 +4043,7 @@ router5.get(
   "/:sprintId",
   authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   emailVerificationMiddleware,
-  subscriptionCheck,
+  // subscriptionCheck,
   sprintController.getSprintById
 );
 router5.patch(
@@ -6158,10 +6156,445 @@ router9.delete(
 );
 var organizationRoutes = router9;
 
+// src/app/module/stats/stats.route.ts
+import { Router as Router10 } from "express";
+
+// src/app/module/stats/stats.controller.ts
+import { StatusCodes as StatusCodes26 } from "http-status-codes";
+
+// src/app/module/stats/stats.service.ts
+var getOrganizationOverview = async (organizationId, filters = {}) => {
+  const dateFilter = filters.from || filters.to ? {
+    createdAt: {
+      ...filters.from ? { gte: filters.from } : {},
+      ...filters.to ? { lte: filters.to } : {}
+    }
+  } : {};
+  const [
+    totalTeams,
+    totalProjects,
+    totalMembers,
+    totalTasks,
+    taskStatusCounts,
+    taskPriorityCounts,
+    totalSprints,
+    sprintStatusCounts,
+    totalComments,
+    totalPayments,
+    completedPayments,
+    pendingPayments,
+    failedPayments,
+    refundedPayments,
+    completedUsdPayments
+  ] = await Promise.all([
+    prisma.team.count({
+      where: {
+        organizationId,
+        deletedAt: null,
+        ...dateFilter
+      }
+    }),
+    prisma.project.count({
+      where: {
+        organizationId,
+        deletedAt: null,
+        ...dateFilter
+      }
+    }),
+    prisma.organizationMembership.count({
+      where: {
+        organizationId,
+        status: "ACTIVE",
+        user: {
+          deletedAt: null,
+          status: "ACTIVE"
+        },
+        ...dateFilter
+      }
+    }),
+    prisma.task.count({
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        project: {
+          organizationId,
+          deletedAt: null
+        }
+      }
+    }),
+    prisma.task.groupBy({
+      by: ["status"],
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        project: {
+          organizationId,
+          deletedAt: null
+        }
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    prisma.task.groupBy({
+      by: ["priority"],
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        project: {
+          organizationId,
+          deletedAt: null
+        }
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    prisma.sprint.count({
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        project: {
+          organizationId,
+          deletedAt: null
+        }
+      }
+    }),
+    prisma.sprint.groupBy({
+      by: ["status"],
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        project: {
+          organizationId,
+          deletedAt: null
+        }
+      },
+      _count: {
+        _all: true
+      }
+    }),
+    prisma.comment.count({
+      where: {
+        deletedAt: null,
+        ...dateFilter,
+        task: {
+          deletedAt: null,
+          project: {
+            organizationId,
+            deletedAt: null
+          }
+        }
+      }
+    }),
+    prisma.payment.count({
+      where: {
+        organizationId,
+        ...dateFilter
+      }
+    }),
+    prisma.payment.count({
+      where: {
+        organizationId,
+        status: PaymentStatus.COMPLETED,
+        ...dateFilter
+      }
+    }),
+    prisma.payment.count({
+      where: {
+        organizationId,
+        status: PaymentStatus.PENDING,
+        ...dateFilter
+      }
+    }),
+    prisma.payment.count({
+      where: {
+        organizationId,
+        status: PaymentStatus.FAILED,
+        ...dateFilter
+      }
+    }),
+    prisma.payment.count({
+      where: {
+        organizationId,
+        status: PaymentStatus.REFUNDED,
+        ...dateFilter
+      }
+    }),
+    prisma.payment.aggregate({
+      where: {
+        organizationId,
+        status: PaymentStatus.COMPLETED,
+        currency: "USD",
+        ...dateFilter
+      },
+      _sum: {
+        amount: true
+      }
+    })
+  ]);
+  const byStatus = {
+    [TaskStatus.TODO]: 0,
+    [TaskStatus.IN_PROGRESS]: 0,
+    [TaskStatus.REVIEW]: 0,
+    [TaskStatus.DONE]: 0
+  };
+  for (const item of taskStatusCounts) {
+    byStatus[item.status] = item._count._all;
+  }
+  const byPriority = {
+    [TaskPriority.LOW]: 0,
+    [TaskPriority.MEDIUM]: 0,
+    [TaskPriority.HIGH]: 0,
+    [TaskPriority.URGENT]: 0
+  };
+  for (const item of taskPriorityCounts) {
+    byPriority[item.priority] = item._count._all;
+  }
+  const sprintByStatus = {
+    [SprintStatus.PLANNING]: 0,
+    [SprintStatus.ACTIVE]: 0,
+    [SprintStatus.COMPLETED]: 0
+  };
+  for (const item of sprintStatusCounts) {
+    sprintByStatus[item.status] = item._count._all;
+  }
+  return {
+    teams: {
+      total: totalTeams
+    },
+    projects: {
+      total: totalProjects
+    },
+    members: {
+      total: totalMembers
+    },
+    tasks: {
+      total: totalTasks,
+      byStatus,
+      byPriority,
+      completed: byStatus[TaskStatus.DONE]
+    },
+    sprints: {
+      total: totalSprints,
+      byStatus: sprintByStatus
+    },
+    comments: {
+      total: totalComments
+    },
+    billing: {
+      totalPayments,
+      completedPayments,
+      pendingPayments,
+      failedPayments,
+      refundedPayments,
+      totalCompletedAmount: Number(
+        completedUsdPayments._sum.amount ?? 0
+      ),
+      currency: "USD"
+    }
+  };
+};
+var getMemberOverview = async (organizationId, userId) => {
+  const taskWhere = {
+    assigneeId: userId,
+    deletedAt: null,
+    project: {
+      organizationId,
+      deletedAt: null
+    }
+  };
+  const [totalTasks, taskCounts, assignedProjects, totalAuthoredComments] = await Promise.all([
+    prisma.task.count({
+      where: taskWhere
+    }),
+    prisma.task.groupBy({
+      by: ["status"],
+      where: taskWhere,
+      _count: {
+        _all: true
+      }
+    }),
+    prisma.task.findMany({
+      where: taskWhere,
+      select: {
+        projectId: true
+      },
+      distinct: ["projectId"]
+    }),
+    prisma.comment.count({
+      where: {
+        authorId: userId,
+        deletedAt: null,
+        task: {
+          deletedAt: null,
+          project: {
+            organizationId,
+            deletedAt: null
+          }
+        }
+      }
+    })
+  ]);
+  const byStatus = {
+    [TaskStatus.TODO]: 0,
+    [TaskStatus.IN_PROGRESS]: 0,
+    [TaskStatus.REVIEW]: 0,
+    [TaskStatus.DONE]: 0
+  };
+  for (const item of taskCounts) {
+    byStatus[item.status] = item._count._all;
+  }
+  return {
+    tasks: {
+      total: totalTasks,
+      todo: byStatus[TaskStatus.TODO],
+      inProgress: byStatus[TaskStatus.IN_PROGRESS],
+      inReview: byStatus[TaskStatus.REVIEW],
+      completed: byStatus[TaskStatus.DONE]
+    },
+    projects: {
+      total: assignedProjects.length
+    },
+    comments: {
+      totalAuthored: totalAuthoredComments
+    }
+  };
+};
+var statsService = {
+  getOrganizationOverview,
+  getMemberOverview
+};
+
+// src/app/module/stats/stats.schema.ts
+import { z as z11 } from "zod";
+var reportQuerySchema = z11.object({
+  from: z11.iso.datetime({ offset: true }).optional(),
+  to: z11.iso.datetime({ offset: true }).optional()
+}).refine(
+  (query) => !query.from || !query.to || new Date(query.from) <= new Date(query.to),
+  {
+    message: "'from' must be earlier than or equal to 'to'.",
+    path: ["from"]
+  }
+);
+var statsValidation = {
+  reportQuerySchema
+};
+
+// src/app/module/stats/stats.controller.ts
+var getOrganizationId = (req) => {
+  const organizationId = req.user?.organizationId;
+  if (!organizationId) {
+    throw new AppError(
+      StatusCodes26.BAD_REQUEST,
+      "Organization ID is missing in the request context."
+    );
+  }
+  return organizationId;
+};
+var getAuthenticatedUserId = (req) => {
+  const authUser = req.user;
+  const userId = authUser?.userId ?? authUser?.id;
+  if (!userId) {
+    throw new AppError(
+      StatusCodes26.UNAUTHORIZED,
+      "Authenticated user ID is missing from the request context."
+    );
+  }
+  return userId;
+};
+var getAdminOverview = catch_async_default(
+  async (req, res) => {
+    const result = await statsService.getOrganizationOverview(
+      getOrganizationId(req)
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes26.OK,
+      message: "Admin dashboard statistics retrieved successfully",
+      data: result
+    });
+  }
+);
+var getManagerOverview = catch_async_default(
+  async (req, res) => {
+    const result = await statsService.getOrganizationOverview(
+      getOrganizationId(req)
+    );
+    const { billing, ...managerStats } = result;
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes26.OK,
+      message: "Manager dashboard statistics retrieved successfully",
+      data: managerStats
+    });
+  }
+);
+var getMemberOverview2 = catch_async_default(
+  async (req, res) => {
+    const result = await statsService.getMemberOverview(
+      getOrganizationId(req),
+      getAuthenticatedUserId(req)
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes26.OK,
+      message: "Member dashboard statistics retrieved successfully",
+      data: result
+    });
+  }
+);
+var getReports = catch_async_default(
+  async (req, res) => {
+    const query = statsValidation.reportQuerySchema.parse(req.query);
+    const result = await statsService.getOrganizationOverview(
+      getOrganizationId(req),
+      {
+        from: query.from ? new Date(query.from) : void 0,
+        to: query.to ? new Date(query.to) : void 0
+      }
+    );
+    sendSuccessResponse(res, {
+      statusCode: StatusCodes26.OK,
+      message: "Dashboard report generated successfully",
+      data: result
+    });
+  }
+);
+var statsController = {
+  getAdminOverview,
+  getManagerOverview,
+  getMemberOverview: getMemberOverview2,
+  getReports
+};
+
+// src/app/module/stats/stats.route.ts
+var router10 = Router10();
+router10.get(
+  "/admin",
+  authMiddleware.auth(Role.ADMIN),
+  statsController.getAdminOverview
+);
+router10.get(
+  "/manager",
+  authMiddleware.auth(Role.MANAGER),
+  statsController.getManagerOverview
+);
+router10.get(
+  "/member",
+  authMiddleware.auth(Role.MEMBER),
+  statsController.getMemberOverview
+);
+router10.get(
+  "/reports",
+  authMiddleware.auth(Role.ADMIN),
+  validateQuery(statsValidation.reportQuerySchema),
+  statsController.getReports
+);
+var statsRouter = router10;
+
 // src/app.ts
 var app = express();
 var corsOptions = {
-  origin: "https://orbrin.vercel.app",
+  origin: config_default.frontend_url,
   credentials: true
 };
 app.use(cors(corsOptions));
@@ -6182,6 +6615,7 @@ app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/sprints", sprintRoutes);
 app.use("/api/v1/comments", commentRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/stats", statsRouter);
 app.use(not_found_default);
 app.use(global_error_default);
 var app_default = app;

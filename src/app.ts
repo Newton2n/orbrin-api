@@ -16,6 +16,7 @@ import { commentRoutes } from "./app/module/comment/comment.route";
 import { subscriptionRoutes } from "./app/module/subscription/subscripton.route";
 import { userRoutes } from "./app/module/user/user.route";
 import { organizationRoutes } from "./app/module/organization/organization.route";
+import { statsRouter } from "./app/module/stats/stats.route";
 const app: Application = express();
 
 const corsOptions = {
@@ -48,6 +49,7 @@ app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/sprints", sprintRoutes);
 app.use("/api/v1/comments", commentRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/stats", statsRouter);
 
 // Error handling
 app.use(notFound);

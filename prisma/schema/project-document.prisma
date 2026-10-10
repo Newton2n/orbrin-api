@@ -1,31 +1,31 @@
 model ProjectDocument {
-  id           String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  projectId    String   @map("project_id")
-  uploadedById String   @map("uploaded_by_id")
+  projectId    String @map("project_id")
+  uploadedById String @map("uploaded_by_id")
 
   name         String
   url          String
-  publicId     String   @map("public_id")
-  resourceType String   @map("resource_type")
-  mimeType     String   @map("mime_type")
+  publicId     String  @map("public_id")
+  resourceType String  @map("resource_type")
+  mimeType     String  @map("mime_type")
   size         Int
   format       String?
-  
-  deletedAt    DateTime? @map("deleted_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   project      Project  @relation(
-    fields: [projectId],
-    references: [id],
-    onDelete: Cascade
+  fields: [projectId],
+  references: [id],
+  onDelete Cascade
   )
 
   uploadedBy   User     @relation(
-    fields: [uploadedById],
-    references: [id],
-    onDelete: Restrict
+  fields: [uploadedById],
+  references: [id],
+  onDelete Restrict
   )
 
   @@index([projectId])
