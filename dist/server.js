@@ -1283,8 +1283,14 @@ var googleLogin = async (idToken, defaultOrganizationId) => {
     jwtPayload
   };
 };
-var sendVerificationEmail = async (payload) => {
+var sendVerificationEmail = async (payload, loginUserEmail) => {
   const email = payload.email.trim().toLowerCase();
+  if (email !== loginUserEmail) {
+    throw new AppError(
+      StatusCodes5.FORBIDDEN,
+      "You can only send verification email to your own email address."
+    );
+  }
   const user = await prisma.user.findUnique({
     where: {
       email,
@@ -1310,8 +1316,14 @@ var sendVerificationEmail = async (payload) => {
     otp
   });
 };
-var verifyEmail = async (payload) => {
+var verifyEmail = async (payload, loginUserEmail) => {
   const email = payload.email.trim().toLowerCase();
+  if (email !== loginUserEmail) {
+    throw new AppError(
+      StatusCodes5.FORBIDDEN,
+      "You can only verify your own email address."
+    );
+  }
   const user = await prisma.user.findUnique({
     where: {
       email,
@@ -1501,7 +1513,14 @@ var googleLogin2 = catch_async_default(
 );
 var sendVerificationEmail2 = catch_async_default(
   async (req, res, next) => {
-    await authService.sendVerificationEmail(req.body);
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      throw new AppError(
+        StatusCodes6.BAD_REQUEST,
+        "User email is missing in the request. Please log in again."
+      );
+    }
+    await authService.sendVerificationEmail(req.body, userEmail);
     sendSuccessResponse(res, {
       statusCode: StatusCodes6.OK,
       message: "If the account exists and is not verified, a verification code has been sent.",
@@ -1511,7 +1530,14 @@ var sendVerificationEmail2 = catch_async_default(
 );
 var verifyEmail2 = catch_async_default(
   async (req, res, next) => {
-    const result = await authService.verifyEmail(req.body);
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      throw new AppError(
+        StatusCodes6.BAD_REQUEST,
+        "User email is missing in the request. Please log in again."
+      );
+    }
+    const result = await authService.verifyEmail(req.body, userEmail);
     sendSuccessResponse(res, {
       statusCode: StatusCodes6.OK,
       message: "Email verified successfully.",
@@ -1710,11 +1736,13 @@ router.post(
 );
 router.post(
   "/send-verification-email",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   validate(sendVerificationEmailValidationSchema),
   authController.sendVerificationEmail
 );
 router.post(
   "/verify-email",
+  authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
   validate(verifyEmailValidationSchema),
   authController.verifyEmail
 );
@@ -2486,7 +2514,7 @@ var getAllProjects = async (organizationId, query) => {
   const where = {
     organizationId,
     deletedAt: null,
-    ...status ? { status } : {},
+    ...status ? { status: { contains: status, mode: "insensitive" } } : {},
     ...teamId ? { teams: { some: { teamId } } } : {},
     ...search ? {
       OR: [
@@ -2996,7 +3024,7 @@ var updateProjectSchema = z4.object({
   body: z4.object({
     name: z4.string().trim().min(1, { error: "Project name cannot be empty" }).optional(),
     description: z4.string().optional(),
-    status: z4.string().optional()
+    status: z4.enum(["ACTIVE", "IN_PROGRESS", "COMPLETED", "ARCHIVED"]).optional()
   })
 });
 var assignTeamSchema = z4.object({
@@ -3008,7 +3036,7 @@ var projectQuerySchema = paginationQuerySchema.extend({
   search: z4.string().trim().min(1).optional(),
   sortBy: z4.enum(["name", "createdAt", "updatedAt"]).default("createdAt"),
   sortOrder: sortOrderSchema.default("desc"),
-  status: z4.string().trim().min(1).optional(),
+  status: z4.enum(["ACTIVE", "IN_PROGRESS", "COMPLETED", "ARCHIVED"]).optional(),
   teamId: z4.uuid().optional()
 });
 var projectValidation = {
@@ -6468,9 +6496,22 @@ var statsService = {
 
 // src/app/module/stats/stats.schema.ts
 import { z as z11 } from "zod";
+var isNotFutureDate = (value) => {
+  if (!value) {
+    return true;
+  }
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
+};
 var reportQuerySchema = z11.object({
-  from: z11.iso.datetime({ offset: true }).optional(),
-  to: z11.iso.datetime({ offset: true }).optional()
+  from: z11.iso.datetime({ offset: true }).optional().refine(isNotFutureDate, {
+    message: "'from' cannot be a future date.",
+    path: ["from"]
+  }),
+  to: z11.iso.datetime({ offset: true }).optional().refine(isNotFutureDate, {
+    message: "'to' cannot be a future date.",
+    path: ["to"]
+  })
 }).refine(
   (query) => !query.from || !query.to || new Date(query.from) <= new Date(query.to),
   {

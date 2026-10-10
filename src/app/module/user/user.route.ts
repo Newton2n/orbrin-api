@@ -57,7 +57,7 @@ router.patch(
 	userController.changePassword,
 );
 
-// Update user status
+// delete user account
 router.delete(
 	"/me",
 	authMiddleware.auth(Role.MANAGER, Role.MEMBER),
