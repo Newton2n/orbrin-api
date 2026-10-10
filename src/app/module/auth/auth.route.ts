@@ -55,6 +55,7 @@ router.post(
 // Send verification email route
 router.post(
 	"/send-verification-email",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	validate(sendVerificationEmailValidationSchema),
 	authController.sendVerificationEmail,
 );
@@ -62,6 +63,7 @@ router.post(
 // Verify email route
 router.post(
 	"/verify-email",
+	authMiddleware.auth(Role.ADMIN, Role.MANAGER, Role.MEMBER),
 	validate(verifyEmailValidationSchema),
 	authController.verifyEmail,
 );

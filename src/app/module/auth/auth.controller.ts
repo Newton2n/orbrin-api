@@ -148,7 +148,14 @@ const googleLogin = catchAsync(
 
 const sendVerificationEmail = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
-        await authService.sendVerificationEmail(req.body);
+        const userEmail = req.user?.email;
+        if (!userEmail) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "User email is missing in the request. Please log in again.",
+            );
+        }
+        await authService.sendVerificationEmail(req.body,userEmail);
 
         sendSuccessResponse(res, {
             statusCode: StatusCodes.OK,
@@ -161,7 +168,14 @@ const sendVerificationEmail = catchAsync(
 
 const verifyEmail = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
-        const result = await authService.verifyEmail(req.body);
+        const userEmail = req.user?.email;
+        if (!userEmail) {
+            throw new AppError(
+                StatusCodes.BAD_REQUEST,
+                "User email is missing in the request. Please log in again.",
+            );
+        }
+        const result = await authService.verifyEmail(req.body, userEmail);
 
         sendSuccessResponse(res, {
             statusCode: StatusCodes.OK,
